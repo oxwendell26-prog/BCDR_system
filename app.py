@@ -82,7 +82,9 @@ def get_db():
     if "db" not in g:
         if DATABASE_URL:
             # Kapag nasa Render na (Konekta sa Supabase PostgreSQL)
-            g.db = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+            conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+            conn.autocommit = True  # Iniiwasan ang "current transaction is aborted" errors
+            g.db = conn
         else:
             # Kapag nagde-develop ka pa sa local PC mo (Gagamit ng SQLite database.db)
             conn = sqlite3.connect(DATABASE)
@@ -235,10 +237,10 @@ def log_action(user_id, action, details=""):
     db = get_db()
     cursor = db.cursor() if DATABASE_URL else db
     cursor.execute(
-        "INSERT INTO audit_logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO audit_logs (user_id, action, details, created_at) VALUES (%s, %s, %s, %s)" if DATABASE_URL else "INSERT INTO audit_logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)",
         (user_id, action, details, now()),
     )
-    if DATABASE_URL:
+    if not DATABASE_URL:
         db.commit()
 
 
@@ -251,37 +253,56 @@ def load_logged_in_user():
     g.user = None
     user_id = session.get("user_id")
     if user_id is not None:
-        db = get_db()
-        cursor = db.cursor() if DATABASE_URL else db
-        cursor.execute(
-            "SELECT id, email, role, status FROM users WHERE id = %s" if DATABASE_URL else "SELECT id, email, role, status FROM users WHERE id = ?",
-            (user_id,)
-        )
-        user = cursor.fetchone()
-        if user is not None and user["status"] == "active":
-            g.user = user
-        else:
+        try:
+            db = get_db()
+            cursor = db.cursor() if DATABASE_URL else db
+            cursor.execute(
+                "SELECT id, email, role, status FROM users WHERE id = %s" if DATABASE_URL else "SELECT id, email, role, status FROM users WHERE id = ?",
+                (user_id,)
+            )
+            user = cursor.fetchone()
+            if user is not None and user["status"] == "active":
+                g.user = user
+            else:
+                session.clear()
+        except Exception:
             session.clear()
 
 
 @app.context_processor
 def inject_template_globals():
     db = get_db()
-    cursor = db.cursor() if DATABASE_URL else db
-    
-    cursor.execute("SELECT * FROM barangay_settings WHERE id = 1")
-    barangay = cursor.fetchone()
+    barangay = None
+    try:
+        if DATABASE_URL:
+            cursor = db.cursor()
+            cursor.execute("SELECT * FROM barangay_settings WHERE id = 1")
+            barangay = cursor.fetchone()
+        else:
+            barangay = db.execute("SELECT * FROM barangay_settings WHERE id = 1").fetchone()
+    except Exception:
+        barangay = None
     
     unread_notifications_count = 0
     if g.user:
-        cursor.execute(
-            "SELECT COUNT(*) FROM notifications WHERE user_id = %s AND is_read = 0" if DATABASE_URL else "SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0",
-            (g.user["id"],)
-        )
-        row = cursor.fetchone()
-        # Handle count extraction depending on RealDictCursor vs sqlite3.Row
-        if row:
-            unread_notifications_count = list(row.values())[0] if DATABASE_URL else row[0]
+        try:
+            if DATABASE_URL:
+                cursor = db.cursor()
+                cursor.execute(
+                    "SELECT COUNT(*) FROM notifications WHERE user_id = %s AND is_read = 0",
+                    (g.user["id"],)
+                )
+                row = cursor.fetchone()
+                if row:
+                    unread_notifications_count = list(row.values())[0]
+            else:
+                row = db.execute(
+                    "SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0",
+                    (g.user["id"],)
+                ).fetchone()
+                unread_notifications_count = row[0] if row else 0
+        except Exception:
+            unread_notifications_count = 0
 
     return {
         "current_user": g.get("user"),
@@ -354,7 +375,8 @@ def save_attachments(request_id, files):
                 "VALUES (?, ?, ?, ?)",
                 (request_id, secure_filename(file.filename) or "file", stored_name, now()),
             )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
 
 
 def notify_staff_and_admins(request_id, message):
@@ -373,7 +395,8 @@ def notify_staff_and_admins(request_id, message):
                 "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (?, ?, ?, 0, ?)",
                 (staff["id"], request_id, message, now())
             )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
 
 
 REQUEST_DETAIL_SQL = """
@@ -480,9 +503,10 @@ def register():
                      data["birthdate"], data["sex"], data["civil_status"], data["purok"],
                      data["address"], data["contact_number"]),
                 )
-            db.commit()
+                db.commit()
         except Exception:
-            db.rollback()
+            if not DATABASE_URL:
+                db.rollback()
             flash("An account with that email already exists.", "danger")
             return render_template("public/register.html", form=data)
 
@@ -581,7 +605,8 @@ def forgot_password():
             "UPDATE users SET password_hash = %s WHERE id = %s" if DATABASE_URL else "UPDATE users SET password_hash = ? WHERE id = ?",
             (new_hash, user["id"])
         )
-        db.commit()
+        if not DATABASE_URL:
+            db.commit()
 
         flash("Your password has been successfully reset. You can now log in.", "success")
         return redirect(url_for("login"))
@@ -688,7 +713,8 @@ def new_request():
         notif_msg = f"New document request (#{request_id}) for {document_type['name']} submitted by {resident_name}."
         notify_staff_and_admins(request_id, notif_msg)
 
-        db.commit()
+        if not DATABASE_URL:
+            db.commit()
 
         flash("Your request has been submitted.", "success")
         return redirect(url_for("request_details", request_id=request_id))
@@ -756,7 +782,8 @@ def cancel_request(request_id):
             "UPDATE requests SET status = 'Cancelled', updated_at = %s WHERE id = %s" if DATABASE_URL else "UPDATE requests SET status = 'Cancelled', updated_at = ? WHERE id = ?",
             (now(), request_id)
         )
-        db.commit()
+        if not DATABASE_URL:
+            db.commit()
         flash("Your request has been cancelled.", "info")
     return redirect(url_for("request_details", request_id=request_id))
 
@@ -872,7 +899,8 @@ def notifications_page():
         "UPDATE notifications SET is_read = 1 WHERE user_id = %s" if DATABASE_URL else "UPDATE notifications SET is_read = 1 WHERE user_id = ?",
         (g.user["id"],)
     )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
 
     return render_template("resident/notifications.html", notifications=notifications)
 
@@ -886,7 +914,8 @@ def clear_notifications():
         "DELETE FROM notifications WHERE user_id = %s" if DATABASE_URL else "DELETE FROM notifications WHERE user_id = ?",
         (g.user["id"],)
     )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
     flash("All notifications have been cleared.", "info")
     return redirect(url_for("notifications_page"))
 
@@ -900,7 +929,8 @@ def delete_notification(notif_id):
         "DELETE FROM notifications WHERE id = %s AND user_id = %s" if DATABASE_URL else "DELETE FROM notifications WHERE id = ? AND user_id = ?",
         (notif_id, g.user["id"])
     )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
     flash("Notification deleted.", "info")
     return redirect(url_for("notifications_page"))
 
@@ -923,7 +953,8 @@ def profile():
                 "UPDATE residents SET purok = %s, address = %s, contact_number = %s WHERE id = %s" if DATABASE_URL else "UPDATE residents SET purok = ?, address = ?, contact_number = ? WHERE id = ?",
                 (purok, address, contact_number, resident["id"]),
             )
-            db.commit()
+            if not DATABASE_URL:
+                db.commit()
             flash("Your profile has been updated.", "success")
             return redirect(url_for("profile"))
         resident = get_current_resident()
@@ -940,7 +971,8 @@ def delete_resident_request(request_id):
         "DELETE FROM requests WHERE id = %s AND resident_id = %s" if DATABASE_URL else "DELETE FROM requests WHERE id = ? AND resident_id = ?",
         (request_id, resident["id"])
     )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
     flash("Request deleted successfully.", "success")
     return redirect(url_for('my_requests'))
 
@@ -954,7 +986,8 @@ def delete_all_resident_requests():
         "DELETE FROM requests WHERE resident_id = %s" if DATABASE_URL else "DELETE FROM requests WHERE resident_id = ?",
         (resident["id"],)
     )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
     flash("All your requests have been cleared.", "success")
     return redirect(url_for('my_requests'))
 
@@ -1002,7 +1035,7 @@ def request_queue():
         params.extend(OPEN_STATUSES)
 
     if search:
-        query += " AND (res.first_name LIKE %s OR res.last_name LIKE %s OR u.email LIKE %s)" if DATABASE_URL else " AND (res.first_name LIKE ? OR res.last_name LIKE ? OR u.email LIKE ?)"
+        query += " AND (res.first_name ILIKE %s OR res.last_name ILIKE %s OR u.email ILIKE %s)" if DATABASE_URL else " AND (res.first_name LIKE ? OR res.last_name LIKE ? OR u.email LIKE ?)"
         search_param = f"%{search}%"
         params.extend([search_param, search_param, search_param])
 
@@ -1074,7 +1107,8 @@ def review_request(request_id):
                         (req["user_id"], request_id, notif_msg, now())
                     )
 
-            db.commit()
+            if not DATABASE_URL:
+                db.commit()
             flash(f"Request #{request_id} is now '{new_status}'.", "success")
             return redirect(url_for("request_queue"))
 
@@ -1131,7 +1165,8 @@ def resident_decision(user_id):
         "UPDATE users SET status = %s WHERE id = %s" if DATABASE_URL else "UPDATE users SET status = ? WHERE id = ?",
         (new_status, user_id)
     )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
     flash(f"Resident account {new_status}: {user['email']}", "success")
     return redirect(url_for("residents_list"))
 
@@ -1184,9 +1219,11 @@ def save_document_type():
                 (name, description, requirements, fee, processing_days),
             )
             flash("New document type added successfully.", "success")
-        db.commit()
+        if not DATABASE_URL:
+            db.commit()
     except Exception:
-        db.rollback()
+        if not DATABASE_URL:
+            db.rollback()
         flash("A document type with that name already exists.", "danger")
 
     return redirect(url_for("document_types"))
@@ -1210,7 +1247,8 @@ def toggle_document_type(doc_id):
         "UPDATE document_types SET is_active = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET is_active = ? WHERE id = ?",
         (new_status, doc_id)
     )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
 
     status_word = "activated" if new_status == 1 else "deactivated"
     flash(f"Document type has been {status_word}.", "info")
@@ -1249,7 +1287,8 @@ def barangay_settings_page():
                 """,
                 (barangay_name, municipality, province, address, punong_barangay, secretary, control_prefix),
             )
-            db.commit()
+            if not DATABASE_URL:
+                db.commit()
             flash("Barangay settings updated successfully!", "success")
             return redirect(url_for("barangay_settings_page"))
 
@@ -1286,7 +1325,8 @@ def delete_released_record(request_id):
         "DELETE FROM requests WHERE id = %s AND status = 'Released'" if DATABASE_URL else "DELETE FROM requests WHERE id = ? AND status = 'Released'",
         (request_id,)
     )
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
     flash("Released record deleted successfully.", "success")
     return redirect(url_for('released_records'))
 
@@ -1296,7 +1336,8 @@ def delete_all_released_records():
     db = get_db()
     cursor = db.cursor() if DATABASE_URL else db
     cursor.execute("DELETE FROM requests WHERE status = 'Released'")
-    db.commit()
+    if not DATABASE_URL:
+        db.commit()
     flash("All released records have been cleared.", "success")
     return redirect(url_for('released_records'))
 
@@ -1351,7 +1392,8 @@ def staff_edit_resident(resident_id):
                 """,
                 (first_name, middle_name, last_name, birthdate, sex, civil_status, purok, address, contact_number, resident_id)
             )
-            db.commit()
+            if not DATABASE_URL:
+                db.commit()
             flash(f"Resident profile for {first_name} {last_name} updated successfully.", "success")
             return redirect(url_for("residents_list"))
 
