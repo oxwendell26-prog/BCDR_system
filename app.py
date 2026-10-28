@@ -232,10 +232,14 @@ def init_db():
 
 
 def log_action(user_id, action, details=""):
-    get_db().execute(
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
         "INSERT INTO audit_logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)",
         (user_id, action, details, now()),
     )
+    if DATABASE_URL:
+        db.commit()
 
 
 # =============================================================================
@@ -247,9 +251,13 @@ def load_logged_in_user():
     g.user = None
     user_id = session.get("user_id")
     if user_id is not None:
-        user = get_db().execute(
-            "SELECT id, email, role, status FROM users WHERE id = ?", (user_id,)
-        ).fetchone()
+        db = get_db()
+        cursor = db.cursor() if DATABASE_URL else db
+        cursor.execute(
+            "SELECT id, email, role, status FROM users WHERE id = %s" if DATABASE_URL else "SELECT id, email, role, status FROM users WHERE id = ?",
+            (user_id,)
+        )
+        user = cursor.fetchone()
         if user is not None and user["status"] == "active":
             g.user = user
         else:
@@ -258,14 +266,22 @@ def load_logged_in_user():
 
 @app.context_processor
 def inject_template_globals():
-    barangay = get_db().execute("SELECT * FROM barangay_settings WHERE id = 1").fetchone()
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    
+    cursor.execute("SELECT * FROM barangay_settings WHERE id = 1")
+    barangay = cursor.fetchone()
+    
     unread_notifications_count = 0
     if g.user:
-        row = get_db().execute(
-            "SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0",
+        cursor.execute(
+            "SELECT COUNT(*) FROM notifications WHERE user_id = %s AND is_read = 0" if DATABASE_URL else "SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0",
             (g.user["id"],)
-        ).fetchone()
-        unread_notifications_count = row[0] if row else 0
+        )
+        row = cursor.fetchone()
+        # Handle count extraction depending on RealDictCursor vs sqlite3.Row
+        if row:
+            unread_notifications_count = list(row.values())[0] if DATABASE_URL else row[0]
 
     return {
         "current_user": g.get("user"),
@@ -303,9 +319,13 @@ def login_required(view):
 
 
 def get_current_resident():
-    resident = get_db().execute(
-        "SELECT * FROM residents WHERE user_id = ?", (g.user["id"],)
-    ).fetchone()
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "SELECT * FROM residents WHERE user_id = %s" if DATABASE_URL else "SELECT * FROM residents WHERE user_id = ?",
+        (g.user["id"],)
+    )
+    resident = cursor.fetchone()
     if resident is None:
         abort(404)
     return resident
@@ -317,25 +337,42 @@ def allowed_file(filename):
 
 def save_attachments(request_id, files):
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     for file in files:
         extension = file.filename.rsplit(".", 1)[1].lower()
         stored_name = f"{uuid.uuid4().hex}.{extension}"
         file.save(os.path.join(UPLOAD_FOLDER, stored_name))
-        db.execute(
-            "INSERT INTO request_attachments (request_id, original_name, stored_name, uploaded_at) "
-            "VALUES (?, ?, ?, ?)",
-            (request_id, secure_filename(file.filename) or "file", stored_name, now()),
-        )
+        if DATABASE_URL:
+            cursor.execute(
+                "INSERT INTO request_attachments (request_id, original_name, stored_name, uploaded_at) "
+                "VALUES (%s, %s, %s, %s)",
+                (request_id, secure_filename(file.filename) or "file", stored_name, now()),
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO request_attachments (request_id, original_name, stored_name, uploaded_at) "
+                "VALUES (?, ?, ?, ?)",
+                (request_id, secure_filename(file.filename) or "file", stored_name, now()),
+            )
+    db.commit()
 
 
 def notify_staff_and_admins(request_id, message):
     db = get_db()
-    staff_users = db.execute("SELECT id FROM users WHERE role IN ('staff', 'admin') AND status = 'active'").fetchall()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute("SELECT id FROM users WHERE role IN ('staff', 'admin') AND status = 'active'")
+    staff_users = cursor.fetchall()
     for staff in staff_users:
-        db.execute(
-            "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (?, ?, ?, 0, ?)",
-            (staff["id"], request_id, message, now())
-        )
+        if DATABASE_URL:
+            cursor.execute(
+                "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (%s, %s, %s, 0, %s)",
+                (staff["id"], request_id, message, now())
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (?, ?, ?, 0, ?)",
+                (staff["id"], request_id, message, now())
+            )
     db.commit()
 
 
@@ -414,16 +451,16 @@ def register():
             return render_template("public/register.html", form=data)
 
         db = get_db()
+        cursor = db.cursor() if DATABASE_URL else db
         try:
             if DATABASE_URL:
-                cursor = db.cursor()
                 cursor.execute(
                     "INSERT INTO users (email, password_hash, role, status, created_at) "
                     "VALUES (%s, %s, 'resident', 'pending', %s) RETURNING id",
                     (data["email"], generate_password_hash(password), now()),
                 )
                 user_id = cursor.fetchone()["id"]
-                db.execute(
+                cursor.execute(
                     "INSERT INTO residents (user_id, first_name, middle_name, last_name, birthdate, "
                     "sex, civil_status, purok, address, contact_number) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                     (user_id, data["first_name"], data["middle_name"], data["last_name"],
@@ -431,12 +468,12 @@ def register():
                      data["address"], data["contact_number"]),
                 )
             else:
-                cursor = db.execute(
+                cursor.execute(
                     "INSERT INTO users (email, password_hash, role, status, created_at) "
                     "VALUES (?, ?, 'resident', 'pending', ?)",
                     (data["email"], generate_password_hash(password), now()),
                 )
-                db.execute(
+                cursor.execute(
                     "INSERT INTO residents (user_id, first_name, middle_name, last_name, birthdate, "
                     "sex, civil_status, purok, address, contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     (cursor.lastrowid, data["first_name"], data["middle_name"], data["last_name"],
@@ -464,7 +501,13 @@ def login():
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 
-        user = get_db().execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+        db = get_db()
+        cursor = db.cursor() if DATABASE_URL else db
+        cursor.execute(
+            "SELECT * FROM users WHERE email = %s" if DATABASE_URL else "SELECT * FROM users WHERE email = ?",
+            (email,)
+        )
+        user = cursor.fetchone()
 
         if user is None or not check_password_hash(user["password_hash"], password):
             flash("Invalid email or password.", "danger")
@@ -503,14 +546,23 @@ def forgot_password():
         confirm_password = request.form.get("confirm_password", "")
 
         db = get_db()
+        cursor = db.cursor() if DATABASE_URL else db
         
-        user = db.execute("SELECT * FROM users WHERE email = ? AND role = 'resident'", (email,)).fetchone()
+        cursor.execute(
+            "SELECT * FROM users WHERE email = %s AND role = 'resident'" if DATABASE_URL else "SELECT * FROM users WHERE email = ? AND role = 'resident'",
+            (email,)
+        )
+        user = cursor.fetchone()
         
         if not user:
             flash("No resident account found with that email address.", "danger")
             return render_template("public/forgot_password.html", email=email)
 
-        resident = db.execute("SELECT * FROM residents WHERE user_id = ? AND contact_number = ?", (user["id"], contact_number)).fetchone()
+        cursor.execute(
+            "SELECT * FROM residents WHERE user_id = %s AND contact_number = %s" if DATABASE_URL else "SELECT * FROM residents WHERE user_id = ? AND contact_number = ?",
+            (user["id"], contact_number)
+        )
+        resident = cursor.fetchone()
         
         if not resident:
             flash("The contact number does not match our records for this email.", "danger")
@@ -525,7 +577,10 @@ def forgot_password():
             return render_template("public/forgot_password.html", email=email)
 
         new_hash = generate_password_hash(new_password)
-        db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (new_hash, user["id"]))
+        cursor.execute(
+            "UPDATE users SET password_hash = %s WHERE id = %s" if DATABASE_URL else "UPDATE users SET password_hash = ? WHERE id = ?",
+            (new_hash, user["id"])
+        )
         db.commit()
 
         flash("Your password has been successfully reset. You can now log in.", "success")
@@ -542,18 +597,21 @@ def forgot_password():
 @role_required("resident")
 def resident_dashboard():
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     resident = get_current_resident()
 
-    rows = db.execute(
-        "SELECT status, COUNT(*) AS total FROM requests WHERE resident_id = ? GROUP BY status",
+    cursor.execute(
+        "SELECT status, COUNT(*) AS total FROM requests WHERE resident_id = %s GROUP BY status" if DATABASE_URL else "SELECT status, COUNT(*) AS total FROM requests WHERE resident_id = ? GROUP BY status",
         (resident["id"],),
-    ).fetchall()
+    )
+    rows = cursor.fetchall()
     status_counts = {row["status"]: row["total"] for row in rows}
 
-    recent_requests = db.execute(
-        REQUEST_DETAIL_SQL + " WHERE r.resident_id = ? ORDER BY r.created_at DESC, r.id DESC LIMIT 5",
+    cursor.execute(
+        (REQUEST_DETAIL_SQL + " WHERE r.resident_id = %s ORDER BY r.created_at DESC, r.id DESC LIMIT 5") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.resident_id = ? ORDER BY r.created_at DESC, r.id DESC LIMIT 5"),
         (resident["id"],),
-    ).fetchall()
+    )
+    recent_requests = cursor.fetchall()
 
     return render_template(
         "resident/dashboard.html",
@@ -565,10 +623,11 @@ def resident_dashboard():
 @role_required("resident")
 def new_request():
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     resident = get_current_resident()
-    document_types = db.execute(
-        "SELECT * FROM document_types WHERE is_active = 1 ORDER BY name"
-    ).fetchall()
+    
+    cursor.execute("SELECT * FROM document_types WHERE is_active = 1 ORDER BY name")
+    document_types = cursor.fetchall()
 
     if request.method == "POST":
         document_type_id = request.form.get("document_type_id", type=int)
@@ -578,9 +637,11 @@ def new_request():
         errors = []
         document_type = None
         if document_type_id:
-            document_type = db.execute(
-                "SELECT * FROM document_types WHERE id = ? AND is_active = 1", (document_type_id,)
-            ).fetchone()
+            cursor.execute(
+                "SELECT * FROM document_types WHERE id = %s AND is_active = 1" if DATABASE_URL else "SELECT * FROM document_types WHERE id = ? AND is_active = 1",
+                (document_type_id,)
+            )
+            document_type = cursor.fetchone()
         if document_type is None:
             errors.append("Please choose a valid document type.")
         if len(purpose) < 5:
@@ -602,7 +663,6 @@ def new_request():
 
         timestamp = now()
         if DATABASE_URL:
-            cursor = db.cursor()
             cursor.execute(
                 "INSERT INTO requests (resident_id, document_type_id, purpose, status, created_at, updated_at) "
                 "VALUES (%s, %s, %s, 'Submitted', %s, %s) RETURNING id",
@@ -610,7 +670,7 @@ def new_request():
             )
             request_id = cursor.fetchone()["id"]
         else:
-            cursor = db.execute(
+            cursor.execute(
                 "INSERT INTO requests (resident_id, document_type_id, purpose, status, created_at, updated_at) "
                 "VALUES (?, ?, ?, 'Submitted', ?, ?)",
                 (resident["id"], document_type["id"], purpose, timestamp, timestamp),
@@ -619,7 +679,11 @@ def new_request():
             
         save_attachments(request_id, files)
 
-        resident_info = db.execute("SELECT first_name, last_name FROM residents WHERE id = ?", (resident["id"],)).fetchone()
+        cursor.execute(
+            "SELECT first_name, last_name FROM residents WHERE id = %s" if DATABASE_URL else "SELECT first_name, last_name FROM residents WHERE id = ?",
+            (resident["id"],)
+        )
+        resident_info = cursor.fetchone()
         resident_name = f"{resident_info['first_name']} {resident_info['last_name']}" if resident_info else "A resident"
         notif_msg = f"New document request (#{request_id}) for {document_type['name']} submitted by {resident_name}."
         notify_staff_and_admins(request_id, notif_msg)
@@ -635,11 +699,15 @@ def new_request():
 @app.route("/resident/my-requests")
 @role_required("resident")
 def my_requests():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     resident = get_current_resident()
-    requests_list = get_db().execute(
-        REQUEST_DETAIL_SQL + " WHERE r.resident_id = ? ORDER BY r.created_at DESC, r.id DESC",
+    
+    cursor.execute(
+        (REQUEST_DETAIL_SQL + " WHERE r.resident_id = %s ORDER BY r.created_at DESC, r.id DESC") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.resident_id = ? ORDER BY r.created_at DESC, r.id DESC"),
         (resident["id"],),
-    ).fetchall()
+    )
+    requests_list = cursor.fetchall()
     return render_template("resident/my-requests.html", requests=requests_list)
 
 
@@ -647,15 +715,22 @@ def my_requests():
 @role_required("resident")
 def request_details(request_id):
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     resident = get_current_resident()
-    req = db.execute(
-        REQUEST_DETAIL_SQL + " WHERE r.id = ? AND r.resident_id = ?", (request_id, resident["id"])
-    ).fetchone()
+    
+    cursor.execute(
+        (REQUEST_DETAIL_SQL + " WHERE r.id = %s AND r.resident_id = %s") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.id = ? AND r.resident_id = ?"),
+        (request_id, resident["id"])
+    )
+    req = cursor.fetchone()
     if req is None:
         abort(404)
-    attachments = db.execute(
-        "SELECT * FROM request_attachments WHERE request_id = ?", (request_id,)
-    ).fetchall()
+        
+    cursor.execute(
+        "SELECT * FROM request_attachments WHERE request_id = %s" if DATABASE_URL else "SELECT * FROM request_attachments WHERE request_id = ?",
+        (request_id,)
+    )
+    attachments = cursor.fetchall()
     return render_template("resident/request-details.html", req=req, attachments=attachments)
 
 
@@ -663,18 +738,24 @@ def request_details(request_id):
 @role_required("resident")
 def cancel_request(request_id):
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     resident = get_current_resident()
-    req = db.execute(
-        "SELECT * FROM requests WHERE id = ? AND resident_id = ?", (request_id, resident["id"])
-    ).fetchone()
+    
+    cursor.execute(
+        "SELECT * FROM requests WHERE id = %s AND resident_id = %s" if DATABASE_URL else "SELECT * FROM requests WHERE id = ? AND resident_id = ?",
+        (request_id, resident["id"])
+    )
+    req = cursor.fetchone()
     if req is None:
         abort(404)
 
     if req["status"] != "Submitted":
         flash("Only requests that are still 'Submitted' can be cancelled.", "warning")
     else:
-        db.execute("UPDATE requests SET status = 'Cancelled', updated_at = ? WHERE id = ?",
-                   (now(), request_id))
+        cursor.execute(
+            "UPDATE requests SET status = 'Cancelled', updated_at = %s WHERE id = %s" if DATABASE_URL else "UPDATE requests SET status = 'Cancelled', updated_at = ? WHERE id = ?",
+            (now(), request_id)
+        )
         db.commit()
         flash("Your request has been cancelled.", "info")
     return redirect(url_for("request_details", request_id=request_id))
@@ -684,16 +765,21 @@ def cancel_request(request_id):
 @role_required("resident", "staff", "admin")
 def download_document_pdf(request_id):
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     
     if g.user["role"] in STAFF_ROLES:
-        req = db.execute(
-            REQUEST_DETAIL_SQL + " WHERE r.id = ?", (request_id,)
-        ).fetchone()
+        cursor.execute(
+            (REQUEST_DETAIL_SQL + " WHERE r.id = %s") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.id = ?"),
+            (request_id,)
+        )
+        req = cursor.fetchone()
     else:
         resident = get_current_resident()
-        req = db.execute(
-            REQUEST_DETAIL_SQL + " WHERE r.id = ? AND r.resident_id = ?", (request_id, resident["id"])
-        ).fetchone()
+        cursor.execute(
+            (REQUEST_DETAIL_SQL + " WHERE r.id = %s AND r.resident_id = %s") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.id = ? AND r.resident_id = ?"),
+            (request_id, resident["id"])
+        )
+        req = cursor.fetchone()
 
     if not req or req["status"] != "Released":
         flash("Document is not available for download yet. Please settle your payment or wait for the staff to release the document.", "danger")
@@ -701,7 +787,8 @@ def download_document_pdf(request_id):
             return redirect(url_for("review_request", request_id=request_id))
         return redirect(url_for("my_requests"))
 
-    barangay = db.execute("SELECT * FROM barangay_settings WHERE id = 1").fetchone()
+    cursor.execute("SELECT * FROM barangay_settings WHERE id = 1")
+    barangay = cursor.fetchone()
 
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
@@ -773,12 +860,18 @@ def download_document_pdf(request_id):
 @login_required
 def notifications_page():
     db = get_db()
-    notifications = db.execute(
-        "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
+    cursor = db.cursor() if DATABASE_URL else db
+    
+    cursor.execute(
+        "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC" if DATABASE_URL else "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
         (g.user["id"],)
-    ).fetchall()
+    )
+    notifications = cursor.fetchall()
 
-    db.execute("UPDATE notifications SET is_read = 1 WHERE user_id = ?", (g.user["id"],))
+    cursor.execute(
+        "UPDATE notifications SET is_read = 1 WHERE user_id = %s" if DATABASE_URL else "UPDATE notifications SET is_read = 1 WHERE user_id = ?",
+        (g.user["id"],)
+    )
     db.commit()
 
     return render_template("resident/notifications.html", notifications=notifications)
@@ -788,7 +881,11 @@ def notifications_page():
 @login_required
 def clear_notifications():
     db = get_db()
-    db.execute("DELETE FROM notifications WHERE user_id = ?", (g.user["id"],))
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "DELETE FROM notifications WHERE user_id = %s" if DATABASE_URL else "DELETE FROM notifications WHERE user_id = ?",
+        (g.user["id"],)
+    )
     db.commit()
     flash("All notifications have been cleared.", "info")
     return redirect(url_for("notifications_page"))
@@ -798,7 +895,11 @@ def clear_notifications():
 @login_required
 def delete_notification(notif_id):
     db = get_db()
-    db.execute("DELETE FROM notifications WHERE id = ? AND user_id = ?", (notif_id, g.user["id"]))
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "DELETE FROM notifications WHERE id = %s AND user_id = %s" if DATABASE_URL else "DELETE FROM notifications WHERE id = ? AND user_id = ?",
+        (notif_id, g.user["id"])
+    )
     db.commit()
     flash("Notification deleted.", "info")
     return redirect(url_for("notifications_page"))
@@ -808,6 +909,7 @@ def delete_notification(notif_id):
 @role_required("resident")
 def profile():
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     resident = get_current_resident()
 
     if request.method == "POST":
@@ -817,8 +919,8 @@ def profile():
         if not (purok and address and contact_number):
             flash("Purok, address, and contact number are required.", "danger")
         else:
-            db.execute(
-                "UPDATE residents SET purok = ?, address = ?, contact_number = ? WHERE id = ?",
+            cursor.execute(
+                "UPDATE residents SET purok = %s, address = %s, contact_number = %s WHERE id = %s" if DATABASE_URL else "UPDATE residents SET purok = ?, address = ?, contact_number = ? WHERE id = ?",
                 (purok, address, contact_number, resident["id"]),
             )
             db.commit()
@@ -832,8 +934,12 @@ def profile():
 @role_required("resident")
 def delete_resident_request(request_id):
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     resident = get_current_resident()
-    db.execute("DELETE FROM requests WHERE id = ? AND resident_id = ?", (request_id, resident["id"]))
+    cursor.execute(
+        "DELETE FROM requests WHERE id = %s AND resident_id = %s" if DATABASE_URL else "DELETE FROM requests WHERE id = ? AND resident_id = ?",
+        (request_id, resident["id"])
+    )
     db.commit()
     flash("Request deleted successfully.", "success")
     return redirect(url_for('my_requests'))
@@ -842,8 +948,12 @@ def delete_resident_request(request_id):
 @role_required("resident")
 def delete_all_resident_requests():
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     resident = get_current_resident()
-    db.execute("DELETE FROM requests WHERE resident_id = ?", (resident["id"],))
+    cursor.execute(
+        "DELETE FROM requests WHERE resident_id = %s" if DATABASE_URL else "DELETE FROM requests WHERE resident_id = ?",
+        (resident["id"],)
+    )
     db.commit()
     flash("All your requests have been cleared.", "success")
     return redirect(url_for('my_requests'))
@@ -857,11 +967,15 @@ def delete_all_resident_requests():
 @role_required(*STAFF_ROLES)
 def staff_dashboard():
     db = get_db()
-    rows = db.execute("SELECT status, COUNT(*) AS total FROM requests GROUP BY status").fetchall()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute("SELECT status, COUNT(*) AS total FROM requests GROUP BY status")
+    rows = cursor.fetchall()
     status_counts = {row["status"]: row["total"] for row in rows}
-    pending_residents = db.execute(
-        "SELECT COUNT(*) FROM users WHERE role = 'resident' AND status = 'pending'"
-    ).fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'resident' AND status = 'pending'")
+    pending_residents_row = cursor.fetchone()
+    pending_residents = list(pending_residents_row.values())[0] if DATABASE_URL else pending_residents_row[0]
+    
     return render_template(
         "staff/dashboard.html", status_counts=status_counts, pending_residents=pending_residents,
     )
@@ -871,6 +985,7 @@ def staff_dashboard():
 @role_required(*STAFF_ROLES)
 def request_queue():
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     status = request.args.get("status", "").strip()
     search = request.args.get("search", "").strip()
 
@@ -878,21 +993,23 @@ def request_queue():
     params = []
 
     if status in REQUEST_STATUSES:
-        query += " AND r.status = ?"
+        query += " AND r.status = %s" if DATABASE_URL else " AND r.status = ?"
         params.append(status)
     else:
-        placeholders = ", ".join("?" for _ in OPEN_STATUSES)
+        ph = "%s" if DATABASE_URL else "?"
+        placeholders = ", ".join(ph for _ in OPEN_STATUSES)
         query += f" AND r.status IN ({placeholders})"
         params.extend(OPEN_STATUSES)
 
     if search:
-        query += " AND (res.first_name LIKE ? OR res.last_name LIKE ? OR u.email LIKE ?)"
+        query += " AND (res.first_name LIKE %s OR res.last_name LIKE %s OR u.email LIKE %s)" if DATABASE_URL else " AND (res.first_name LIKE ? OR res.last_name LIKE ? OR u.email LIKE ?)"
         search_param = f"%{search}%"
         params.extend([search_param, search_param, search_param])
 
     query += " ORDER BY r.created_at ASC, r.id ASC"
 
-    requests_list = db.execute(query, params).fetchall()
+    cursor.execute(query, params)
+    requests_list = cursor.fetchall()
     
     return render_template(
         "staff/request-queue.html",
@@ -906,7 +1023,13 @@ def request_queue():
 @role_required(*STAFF_ROLES)
 def review_request(request_id):
     db = get_db()
-    req = db.execute(REQUEST_DETAIL_SQL + " WHERE r.id = ?", (request_id,)).fetchone()
+    cursor = db.cursor() if DATABASE_URL else db
+    
+    cursor.execute(
+        (REQUEST_DETAIL_SQL + " WHERE r.id = %s") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.id = ?"),
+        (request_id,)
+    )
+    req = cursor.fetchone()
     if req is None:
         abort(404)
 
@@ -921,47 +1044,68 @@ def review_request(request_id):
         elif new_status in REMARKS_REQUIRED_STATUSES and not remarks:
             flash(f"Remarks are required when setting a request to '{new_status}'.", "danger")
         else:
-            db.execute(
-                "UPDATE requests SET status = ?, remarks = ?, reviewed_by = ?, updated_at = ? WHERE id = ?",
+            cursor.execute(
+                "UPDATE requests SET status = %s, remarks = %s, reviewed_by = %s, updated_at = %s WHERE id = %s" if DATABASE_URL else "UPDATE requests SET status = ?, remarks = ?, reviewed_by = ?, updated_at = ? WHERE id = ?",
                 (new_status, remarks, g.user["id"], now(), request_id),
             )
 
             if new_status == "Approved":
                 notif_msg = f"Your request for '{req['document_name']}' has been APPROVED! Please settle your payment so staff can release your document."
-                db.execute(
-                    "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (?, ?, ?, 0, ?)",
-                    (req["user_id"], request_id, notif_msg, now())
-                )
+                if DATABASE_URL:
+                    cursor.execute(
+                        "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (%s, %s, %s, 0, %s)",
+                        (req["user_id"], request_id, notif_msg, now())
+                    )
+                else:
+                    cursor.execute(
+                        "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (?, ?, ?, 0, ?)",
+                        (req["user_id"], request_id, notif_msg, now())
+                    )
             elif new_status == "Released":
                 notif_msg = f"Your document '{req['document_name']}' has been RELEASED! You can now view and download your official document."
-                db.execute(
-                    "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (?, ?, ?, 0, ?)",
-                    (req["user_id"], request_id, notif_msg, now())
-                )
+                if DATABASE_URL:
+                    cursor.execute(
+                        "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (%s, %s, %s, 0, %s)",
+                        (req["user_id"], request_id, notif_msg, now())
+                    )
+                else:
+                    cursor.execute(
+                        "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (?, ?, ?, 0, ?)",
+                        (req["user_id"], request_id, notif_msg, now())
+                    )
 
             db.commit()
             flash(f"Request #{request_id} is now '{new_status}'.", "success")
             return redirect(url_for("request_queue"))
 
-        req = db.execute(REQUEST_DETAIL_SQL + " WHERE r.id = ?", (request_id,)).fetchone()
+        cursor.execute(
+            (REQUEST_DETAIL_SQL + " WHERE r.id = %s") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.id = ?"),
+            (request_id,)
+        )
+        req = cursor.fetchone()
 
-    attachments = db.execute(
-        "SELECT * FROM request_attachments WHERE request_id = ?", (request_id,)
-    ).fetchall()
+    cursor.execute(
+        "SELECT * FROM request_attachments WHERE request_id = %s" if DATABASE_URL else "SELECT * FROM request_attachments WHERE request_id = ?",
+        (request_id,)
+    )
+    attachments = cursor.fetchall()
     return render_template("staff/review-request.html", req=req, attachments=attachments)
 
 
 @app.route("/staff/residents")
 @role_required(*STAFF_ROLES)
 def residents_list():
-    residents = get_db().execute(
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
         """
         SELECT res.*, u.id AS user_id, u.email, u.status, u.created_at
         FROM residents res
         JOIN users u ON u.id = res.user_id
         ORDER BY CASE u.status WHEN 'pending' THEN 0 ELSE 1 END, res.last_name, res.first_name
         """
-    ).fetchall()
+    )
+    residents = cursor.fetchall()
     return render_template("staff/residents.html", residents=residents)
 
 
@@ -973,14 +1117,20 @@ def resident_decision(user_id):
         abort(400)
 
     db = get_db()
-    user = db.execute(
-        "SELECT * FROM users WHERE id = ? AND role = 'resident'", (user_id,)
-    ).fetchone()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "SELECT * FROM users WHERE id = %s AND role = 'resident'" if DATABASE_URL else "SELECT * FROM users WHERE id = ? AND role = 'resident'",
+        (user_id,)
+    )
+    user = cursor.fetchone()
     if user is None:
         abort(404)
 
     new_status = "active" if decision == "approve" else "rejected"
-    db.execute("UPDATE users SET status = ? WHERE id = ?", (new_status, user_id))
+    cursor.execute(
+        "UPDATE users SET status = %s WHERE id = %s" if DATABASE_URL else "UPDATE users SET status = ? WHERE id = ?",
+        (new_status, user_id)
+    )
     db.commit()
     flash(f"Resident account {new_status}: {user['email']}", "success")
     return redirect(url_for("residents_list"))
@@ -990,7 +1140,9 @@ def resident_decision(user_id):
 @role_required(*STAFF_ROLES)
 def document_types():
     db = get_db()
-    rows = db.execute("SELECT * FROM document_types ORDER BY name").fetchall()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute("SELECT * FROM document_types ORDER BY name")
+    rows = cursor.fetchall()
     document_types_list = [dict(row) for row in rows]
     return render_template("staff/document_types.html", document_types=document_types_list)
 
@@ -999,6 +1151,7 @@ def document_types():
 @role_required(*STAFF_ROLES)
 def save_document_type():
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     doc_id = request.form.get("doc_id", "").strip()
     name = request.form.get("name", "").strip()
     description = request.form.get("description", "").strip()
@@ -1020,14 +1173,14 @@ def save_document_type():
 
     try:
         if doc_id:
-            db.execute(
-                "UPDATE document_types SET name = ?, description = ?, requirements = ?, fee = ?, processing_days = ? WHERE id = ?",
+            cursor.execute(
+                "UPDATE document_types SET name = %s, description = %s, requirements = %s, fee = %s, processing_days = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET name = ?, description = ?, requirements = ?, fee = ?, processing_days = ? WHERE id = ?",
                 (name, description, requirements, fee, processing_days, doc_id),
             )
             flash("Document type updated successfully.", "success")
         else:
-            db.execute(
-                "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+            cursor.execute(
+                "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active) VALUES (%s, %s, %s, %s, %s, 1)" if DATABASE_URL else "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active) VALUES (?, ?, ?, ?, ?, 1)",
                 (name, description, requirements, fee, processing_days),
             )
             flash("New document type added successfully.", "success")
@@ -1043,12 +1196,20 @@ def save_document_type():
 @role_required(*STAFF_ROLES)
 def toggle_document_type(doc_id):
     db = get_db()
-    doc = db.execute("SELECT * FROM document_types WHERE id = ?", (doc_id,)).fetchone()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "SELECT * FROM document_types WHERE id = %s" if DATABASE_URL else "SELECT * FROM document_types WHERE id = ?",
+        (doc_id,)
+    )
+    doc = cursor.fetchone()
     if doc is None:
         abort(404)
 
     new_status = 0 if doc["is_active"] == 1 else 1
-    db.execute("UPDATE document_types SET is_active = ? WHERE id = ?", (new_status, doc_id))
+    cursor.execute(
+        "UPDATE document_types SET is_active = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET is_active = ? WHERE id = ?",
+        (new_status, doc_id)
+    )
     db.commit()
 
     status_word = "activated" if new_status == 1 else "deactivated"
@@ -1060,6 +1221,7 @@ def toggle_document_type(doc_id):
 @role_required(*STAFF_ROLES)
 def barangay_settings_page():
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
 
     if request.method == "POST":
         barangay_name = request.form.get("barangay_name", "").strip()
@@ -1073,8 +1235,13 @@ def barangay_settings_page():
         if not (barangay_name and municipality and province):
             flash("Barangay Name, Municipality, and Province are required.", "danger")
         else:
-            db.execute(
+            cursor.execute(
                 """
+                UPDATE barangay_settings
+                SET barangay_name = %s, municipality = %s, province = %s, address = %s,
+                    punong_barangay = %s, secretary = %s, control_number_prefix = %s
+                WHERE id = 1
+                """ if DATABASE_URL else """
                 UPDATE barangay_settings
                 SET barangay_name = ?, municipality = ?, province = ?, address = ?,
                     punong_barangay = ?, secretary = ?, control_number_prefix = ?
@@ -1086,7 +1253,8 @@ def barangay_settings_page():
             flash("Barangay settings updated successfully!", "success")
             return redirect(url_for("barangay_settings_page"))
 
-    settings = db.execute("SELECT * FROM barangay_settings WHERE id = 1").fetchone()
+    cursor.execute("SELECT * FROM barangay_settings WHERE id = 1")
+    settings = cursor.fetchone()
     return render_template("staff/settings.html", settings=settings)
 
 @app.route("/staff/records/released")
@@ -1094,15 +1262,18 @@ def barangay_settings_page():
 def released_records():
     search_query = request.args.get("q", "").strip()
     db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
     
     if search_query:
-        sql = REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' AND (u.first_name LIKE ? OR u.last_name LIKE ? OR dt.name LIKE ?) ORDER BY r.updated_at DESC, r.id DESC"
+        sql = (REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' AND (u.first_name ILIKE %s OR u.last_name ILIKE %s OR dt.name ILIKE %s) ORDER BY r.updated_at DESC, r.id DESC") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' AND (u.first_name LIKE ? OR u.last_name LIKE ? OR dt.name LIKE ?) ORDER BY r.updated_at DESC, r.id DESC")
         like_term = f"%{search_query}%"
-        released_list = db.execute(sql, (like_term, like_term, like_term)).fetchall()
+        cursor.execute(sql, (like_term, like_term, like_term))
+        released_list = cursor.fetchall()
     else:
-        released_list = db.execute(
-            REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' ORDER BY r.updated_at DESC, r.id DESC"
-        ).fetchall()
+        cursor.execute(
+            (REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' ORDER BY r.updated_at DESC, r.id DESC")
+        )
+        released_list = cursor.fetchall()
         
     return render_template("staff/released_records.html", requests=released_list, search_query=search_query)
 
@@ -1110,7 +1281,11 @@ def released_records():
 @role_required(*STAFF_ROLES)
 def delete_released_record(request_id):
     db = get_db()
-    db.execute("DELETE FROM requests WHERE id = ? AND status = 'Released'", (request_id,))
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "DELETE FROM requests WHERE id = %s AND status = 'Released'" if DATABASE_URL else "DELETE FROM requests WHERE id = ? AND status = 'Released'",
+        (request_id,)
+    )
     db.commit()
     flash("Released record deleted successfully.", "success")
     return redirect(url_for('released_records'))
@@ -1119,7 +1294,8 @@ def delete_released_record(request_id):
 @role_required(*STAFF_ROLES)
 def delete_all_released_records():
     db = get_db()
-    db.execute("DELETE FROM requests WHERE status = 'Released'")
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute("DELETE FROM requests WHERE status = 'Released'")
     db.commit()
     flash("All released records have been cleared.", "success")
     return redirect(url_for('released_records'))
@@ -1128,15 +1304,22 @@ def delete_all_released_records():
 @role_required(*STAFF_ROLES)
 def staff_edit_resident(resident_id):
     db = get_db()
-    resident = db.execute(
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
         """
+        SELECT res.*, u.email, u.status, u.id AS user_id
+        FROM residents res
+        JOIN users u ON u.id = res.user_id
+        WHERE res.id = %s
+        """ if DATABASE_URL else """
         SELECT res.*, u.email, u.status, u.id AS user_id
         FROM residents res
         JOIN users u ON u.id = res.user_id
         WHERE res.id = ?
         """,
         (resident_id,),
-    ).fetchone()
+    )
+    resident = cursor.fetchone()
     if resident is None:
         abort(404)
 
@@ -1154,8 +1337,13 @@ def staff_edit_resident(resident_id):
         if not (first_name and last_name and birthdate and sex and civil_status and purok and address and contact_number):
             flash("Please fill in all required fields.", "danger")
         else:
-            db.execute(
+            cursor.execute(
                 """
+                UPDATE residents 
+                SET first_name = %s, middle_name = %s, last_name = %s, birthdate = %s, 
+                    sex = %s, civil_status = %s, purok = %s, address = %s, contact_number = %s
+                WHERE id = %s
+                """ if DATABASE_URL else """
                 UPDATE residents 
                 SET first_name = ?, middle_name = ?, last_name = ?, birthdate = ?, 
                     sex = ?, civil_status = ?, purok = ?, address = ?, contact_number = ?
@@ -1178,8 +1366,15 @@ def staff_edit_resident(resident_id):
 @login_required
 def view_attachment(attachment_id):
     db = get_db()
-    attachment = db.execute(
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
         """
+        SELECT a.*, res.user_id AS owner_user_id
+        FROM request_attachments a
+        JOIN requests r ON r.id = a.request_id
+        JOIN residents res ON res.id = r.resident_id
+        WHERE a.id = %s
+        """ if DATABASE_URL else """
         SELECT a.*, res.user_id AS owner_user_id
         FROM request_attachments a
         JOIN requests r ON r.id = a.request_id
@@ -1187,7 +1382,8 @@ def view_attachment(attachment_id):
         WHERE a.id = ?
         """,
         (attachment_id,),
-    ).fetchone()
+    )
+    attachment = cursor.fetchone()
     if attachment is None:
         abort(404)
 
