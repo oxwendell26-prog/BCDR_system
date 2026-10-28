@@ -1,0 +1,103 @@
+{# Paggamit ng base layout #}
+{% extends "base.html" %}
+
+{% block title %}Request Queue{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff/request-queue.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    {# Header at Filter / Search Section #}
+    <div class="queue-header">
+        <div>
+            <h1>Request Queue</h1>
+            <p class="queue-subtitle">Manage and process incoming document requests from residents.</p>
+        </div>
+
+        {# Search at Status Filter Form #}
+        <form method="get" action="{{ url_for('request_queue') }}"
+            style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+
+            <!-- Search Input -->
+            <div class="queue-search">
+                <input type="text" name="search" value="{{ search_query }}" placeholder="Search name or email..."
+                    style="padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; outline: none; width: 200px; background: white;">
+            </div>
+
+            {# Filter Dropdown para sa pagpili kung anong status ang ipapakita sa queue #}
+            <div class="queue-filter">
+                <select id="status-filter" name="status" onchange="this.form.submit()"
+                    style="padding: 0.5rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; background: white; outline: none;">
+                    <option value="" {% if not selected_status %}selected{% endif %}>Open Requests (Default)</option>
+                    {% for status in REQUEST_STATUSES %}
+                    <option value="{{ status }}" {% if selected_status==status %}selected{% endif %}>
+                        {{ status }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-small"
+                style="padding: 0.5rem 1rem; background-color: #1e3a8a; color: white; border-radius: 6px; border: none; font-weight: 600; cursor: pointer;">
+                Filter
+            </button>
+
+            {% if search_query or selected_status %}
+            <a href="{{ url_for('request_queue') }}"
+                style="padding: 0.5rem 0.75rem; background-color: #e2e8f0; color: #475569; border-radius: 6px; text-decoration: none; font-size: 0.9rem; font-weight: 500;">
+                Reset
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    {# Talahanayan ng mga Request #}
+    <div class="card table-wrapper">
+        <table class="requests-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Resident</th>
+                    <th>Document</th>
+                    <th>Purpose</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {# Pag-ikot sa bawat request na nakuha mula sa database #}
+                {% for req in requests %}
+                <tr>
+                    <td>#{{ req.id }}</td>
+                    <td>
+                        <strong>{{ req.last_name }}, {{ req.first_name }}</strong>
+                        <span class="table-subtext">Purok {{ req.purok }} ({{ req.email }})</span>
+                    </td>
+                    <td><strong>{{ req.document_name }}</strong></td>
+                    <td>{{ req.purpose }}</td>
+                    <td>
+                        <span class="badge badge-{{ req.status|lower|replace(' ', '-') }}">
+                            {{ req.status }}
+                        </span>
+                    </td>
+                    <td>{{ req.created_at[:10] }}</td>
+                    <td>
+                        {# Pindutan para i-review o baguhin ang status ng partikular na request #}
+                        <a href="{{ url_for('review_request', request_id=req.id) }}" class="btn btn-small">Review</a>
+                    </td>
+                </tr>
+                {% else %}
+                {# Mensahe kung walang makitang request sa napiling filter #}
+                <tr>
+                    <td colspan="7" class="empty-row">No requests found matching your filter or search.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

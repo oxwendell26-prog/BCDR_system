@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Log in{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: center; align-items: center; min-height: 70vh; padding: 2rem 1rem;">
+    <div class="card"
+        style="width: 100%; max-width: 420px; background: #ffffff; padding: 2.5rem; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
+
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <h1 style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">Welcome Back</h1>
+            <p style="color: #64748b; font-size: 0.95rem; margin: 0;">Log in to access your barangay portal.</p>
+        </div>
+
+        <form method="post" id="login-form" style="display: flex; flex-direction: column; gap: 1.25rem;">
+            <div>
+                <label
+                    style="font-weight: 600; display: block; margin-bottom: 0.4rem; font-size: 0.85rem; color: #475569; text-transform: uppercase; letter-spacing: 0.025em;">Email
+                    Address</label>
+                <input type="email" name="email" id="email" value="{{ email }}" required
+                    style="width: 100%; padding: 0.75rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none;"
+                    onfocus="this.style.borderColor='#2563eb';" onblur="this.style.borderColor='#cbd5e1';">
+            </div>
+
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                    <label
+                        style="font-weight: 600; font-size: 0.85rem; color: #475569; text-transform: uppercase; letter-spacing: 0.025em;">Password</label>
+                    <a href="{{ url_for('forgot_password') }}"
+                        style="font-size: 0.85rem; color: #2563eb; text-decoration: none; font-weight: 500;">Forgot
+                        password?</a>
+                </div>
+
+                <!-- Password input field -->
+                <div style="position: relative; display: flex; align-items: center;">
+                    <input type="password" name="password" id="password" required
+                        style="width: 100%; padding: 0.75rem 2.5rem 0.75rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none;"
+                        onfocus="this.style.borderColor='#2563eb';" onblur="this.style.borderColor='#cbd5e1';">
+
+                    <button type="button" id="toggle-password-icon"
+                        style="position: absolute; right: 12px; background: none; border: none; cursor: pointer; color: #64748b; display: flex; align-items: center; padding: 0;"
+                        aria-label="Toggle password visibility">
+                        <!-- SVG Eye Icon -->
+                        <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Checkbox sa ibaba -->
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: #475569;">
+                <input type="checkbox" id="show-password"
+                    style="width: 16px; height: 16px; accent-color: #1e3a8a; cursor: pointer;">
+                <label for="show-password" style="cursor: pointer; user-select: none;">Show passwords</label>
+            </div>
+
+            <button type="submit" id="login-button" class="btn"
+                style="width: 100%; margin-top: 0.25rem; padding: 0.75rem; background-color: #1e3a8a; color: white; font-weight: 600; border-radius: 8px; border: none; cursor: pointer;">Log
+                in</button>
+        </form>
+
+        <div
+            style="text-align: center; margin-top: 1.75rem; font-size: 0.9rem; color: #64748b; border-top: 1px solid #f1f5f9; padding-top: 1.25rem;">
+            Don't have an account yet? <a href="{{ url_for('register') }}"
+                style="color: #2563eb; text-decoration: none; font-weight: 600;">Register here</a>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Panggulo sa Edge/IE/Chrome browser password reveal buttons */
+    input[type="password"]::-ms-reveal,
+    input[type="password"]::-ms-clear {
+        display: none !important;
+    }
+</style>
+
+<!-- Direct Inline JS para siguradong gagana agad kahit may cache issue -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var passwordInput = document.getElementById("password");
+        var showPasswordCheckbox = document.getElementById("show-password");
+        var togglePasswordBtn = document.getElementById("toggle-password-icon");
+        var eyeIcon = document.getElementById("eye-icon");
+
+        function setPasswordVisibility(isVisible) {
+            if (!passwordInput) return;
+            passwordInput.type = isVisible ? "text" : "password";
+            if (showPasswordCheckbox) {
+                showPasswordCheckbox.checked = isVisible;
+            }
+            if (eyeIcon) {
+                eyeIcon.style.stroke = isVisible ? "#2563eb" : "#64748b";
+            }
+        }
+
+        if (togglePasswordBtn) {
+            togglePasswordBtn.addEventListener("click", function (e) {
+                e.preventDefault();
+                var isCurrentlyPassword = passwordInput.type === "password";
+                setPasswordVisibility(isCurrentlyPassword);
+            });
+        }
+
+        if (showPasswordCheckbox) {
+            showPasswordCheckbox.addEventListener("change", function () {
+                setPasswordVisibility(showPasswordCheckbox.checked);
+            });
+        }
+    });
+</script>
+
+<script src="{{ url_for('static', filename='js/login.js') }}" defer></script>
+
+{% endblock %}

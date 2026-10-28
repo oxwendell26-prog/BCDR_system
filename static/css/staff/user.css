@@ -1,0 +1,35 @@
+/* =============================================================================
+   USER DETAILS STYLESHEET
+   Disenyo para sa account details, resident profile summary, at admin action buttons.
+   ============================================================================= */
+
+.section-title {
+    font-size: 1.1rem;
+    color: #1e293b;
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.35rem;
+}
+
+.action-hint {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-bottom: 1rem;
+}
+
+.action-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.btn-full {
+    width: 100%;
+}
+
+.back-link-wrapper {
+    margin-top: 1rem;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1rem;
+}

@@ -1,0 +1,188 @@
+/* =================================================================iba't 
+   RESIDENT DASHBOARD STYLESHEET
+   Naglalaman ito ng mga disenyo para sa header, action buttons, stat grid, at tables ng residente.
+   ============================================================================= */
+
+/* 1. Dashboard Header: Pamagat at subtitle sa itaas ng dashboard */
+.dashboard-header {
+    margin-bottom: 2rem;
+    /* Distansya sa ibaba bago ang kasunod na elemento */
+}
+
+.dashboard-header h1 {
+    font-size: 1.8rem;
+    color: #1e293b;
+    /* Madilim na kulay abo para sa pangunahing teksto */
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-subtitle {
+    color: #64748b;
+    /* Mas mapusyaw na kulay para sa paliwanag o subtitle */
+    font-size: 1rem;
+}
+
+/* 2. Dashboard Actions: Lalagyan ng mga mabilisang pindutan (buttons) */
+.dashboard-actions {
+    display: flex;
+    gap: 1rem;
+    /* Agwat sa pagitan ng mga pindutan */
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    /* Para kusang lumipat sa ibaba kapag maliit ang screen ng cellphone */
+}
+
+/* 3. Stat Grid: Grid layout para sa mga kahon ng estadistika (bilang ng request) */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    /* Responsive grid: awtomatikong inaayos ang kolum */
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+/* Stat Card: Indibidwal na kahon para sa bawat status counter */
+.stat-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    /* Pabilog na sulok ng kahon */
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.055);
+    /* Manipis at magandang anino */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    /* Smooth na galaw kapag hinawakan ng mouse */
+}
+
+/* Effekto kapag itinapat ang mouse sa stat card */
+.stat-card:hover {
+    transform: translateY(-3px);
+    /* Bahagyang umaangat pataas */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+}
+
+/* Stat Number: Malaking numero ng bilang */
+.stat-number {
+    display: block;
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: #2563eb;
+    /* Kulay asul para sa numero */
+    margin-bottom: 0.25rem;
+}
+
+/* Stat Label: Paliwanag o pangalan ng status sa ibaba ng numero */
+.stat-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* 4. Recent Requests Card: Lalagyan ng talaan ng mga huling hiningi */
+.recent-requests-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.recent-requests-card h2 {
+    font-size: 1.25rem;
+    color: #1e293b;
+    margin-bottom: 1rem;
+}
+
+/* Table Wrapper: Nagbibigay ng pahalang na scroll kung maliit ang screen ng table */
+.table-wrapper {
+    overflow-x: auto;
+}
+
+/* Requests Table: Disenyo ng mismong talahanayan */
+.requests-table {
+    width: 100%;
+    border-collapse: collapse;
+    /* Pinagdidikit ang mga linya ng selda */
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+.requests-table th,
+.requests-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    /* Manipis na linya sa pagitan ng mga hilera */
+}
+
+.requests-table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+}
+
+.requests-table tr:hover {
+    background-color: #f1f5f9;
+    /* Magbabago ang kulay ng row kapag tinapatan ng mouse */
+}
+
+/* 5. Status Badges: Kulay para sa iba't ibang estado ng request */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    /* Ginagawang pill-shaped o bilugan ang badge */
+    text-transform: capitalize;
+}
+
+/* Mga kulay depende sa status ng dokumento */
+.badge-submitted {
+    background-color: #e0f2fe;
+    color: #0369a1;
+}
+
+.badge-under-review {
+    background-color: #fef3c7;
+    color: #b45309;
+}
+
+.badge-for-compliance {
+    background-color: #fed7aa;
+    color: #c2410c;
+}
+
+.badge-approved {
+    background-color: #d1fae5;
+    color: #047857;
+}
+
+.badge-ready-for-release {
+    background-color: #e0e7ff;
+    color: #3730a3;
+}
+
+.badge-released {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.badge-rejected,
+.badge-cancelled {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+/* 6. Empty State: Hitsura kapag wala pang laman o walang nahanap na request */
+.empty-state {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: #64748b;
+}
+
+.empty-state p {
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}

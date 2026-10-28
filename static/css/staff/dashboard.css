@@ -1,0 +1,138 @@
+/* =============================================================================
+   STAFF DASHBOARD STYLESHEET (static/css/staff/dashboard.css)
+   ============================================================================= */
+
+.dashboard-subtitle {
+    font-size: 1rem;
+    color: #64748b;
+    margin-bottom: 2rem;
+}
+
+/* Pending Accounts Banner */
+.pending-banner {
+    background-color: #fef3c7;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.pending-banner p {
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* Espesyal na estilong button para sa banner para maging madaling basahin */
+.btn-banner-action {
+    background-color: #92400e;
+    color: #ffffff;
+    border: none;
+}
+
+.btn-banner-action:hover {
+    background-color: #78350f;
+}
+
+/* Stat Grid */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    text-decoration: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    border-color: #2563eb;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+}
+
+.stat-number {
+    font-size: 2.25rem;
+    font-weight: 800;
+    color: #1e293b;
+    line-height: 1.1;
+    margin-bottom: 0.35rem;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Quick Actions Card */
+.quick-links {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.quick-links h2 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.quick-links p {
+    font-size: 0.95rem;
+    color: #64748b;
+    margin-bottom: 1.5rem;
+}
+
+/* Estilo ng Button na may Hover Effect */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--primary, #1e40af);
+    color: #ffffff;
+    font-weight: 600;
+    padding: 0.6rem 1.25rem;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background-color 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Hover Effect: Babagal ang transition, iingat/iangat nang kaunti, at iitim ang kulay */
+.btn:hover {
+    background-color: #1d4ed8;
+    /* Mas matingkad na kulay kapag tinutok ang mouse */
+    transform: translateY(-2px);
+    /* Medyo aangat ito nang kaunti pataas */
+    box-shadow: 0 4px 12px rgba(30, 64, 175, 0.25);
+    /* Magkakaroon ng lumulutang na anino */
+}
+
+/* Active Effect: Kapag pinindot (click) */
+.btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}

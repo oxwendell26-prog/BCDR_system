@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Register{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/public/register.css') }}">
+<style>
+    /* Pantanggal ng default browser reveal icon sa password field */
+    input[type="password"]::-ms-reveal,
+    input[type="password"]::-ms-clear {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card register-card">
+        <h1>Create an account</h1>
+        <p class="register-subtitle">Register as a resident to request barangay documents online. Fields marked with *
+            are required.</p>
+
+        <form id="register-form" method="post" action="{{ url_for('register') }}" novalidate>
+
+            <h2 class="form-section-title">Personal information</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="first_name" class="required">First name</label>
+                    <input type="text" id="first_name" name="first_name" value="{{ form.get('first_name', '') }}"
+                        autocomplete="given-name" autofocus>
+                    <p class="field-error" id="first_name-error" hidden></p>
+                </div>
+                <div class="form-group">
+                    <label for="middle_name">Middle name</label>
+                    <input type="text" id="middle_name" name="middle_name" value="{{ form.get('middle_name', '') }}"
+                        autocomplete="additional-name">
+                    <p class="field-error" id="middle_name-error" hidden></p>
+                </div>
+                <div class="form-group">
+                    <label for="last_name" class="required">Last name</label>
+                    <input type="text" id="last_name" name="last_name" value="{{ form.get('last_name', '') }}"
+                        autocomplete="family-name">
+                    <p class="field-error" id="last_name-error" hidden></p>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="birthdate" class="required">Birthdate</label>
+                    <input type="date" id="birthdate" name="birthdate" value="{{ form.get('birthdate', '') }}"
+                        autocomplete="bday">
+                    <p class="field-error" id="birthdate-error" hidden></p>
+                </div>
+                <div class="form-group">
+                    <label for="sex" class="required">Sex</label>
+                    <select id="sex" name="sex">
+                        <option value="">Select...</option>
+                        {% for option in SEX_OPTIONS %}
+                        <option value="{{ option }}" {% if form.get('sex')==option %} selected{% endif %}>{{ option }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="field-error" id="sex-error" hidden></p>
+                </div>
+                <div class="form-group">
+                    <label for="civil_status" class="required">Civil status</label>
+                    <select id="civil_status" name="civil_status">
+                        <option value="">Select...</option>
+                        {% for option in CIVIL_STATUS_OPTIONS %}
+                        <option value="{{ option }}" {% if form.get('civil_status')==option %} selected{% endif %}>{{
+                            option }}</option>
+                        {% endfor %}
+                    </select>
+                    <p class="field-error" id="civil_status-error" hidden></p>
+                </div>
+            </div>
+
+            <h2 class="form-section-title">Address and contact</h2>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="purok" class="required">Purok</label>
+                    <input type="text" id="purok" name="purok" value="{{ form.get('purok', '') }}"
+                        placeholder="e.g. Purok 1">
+                    <p class="field-error" id="purok-error" hidden></p>
+                </div>
+                <div class="form-group">
+                    <label for="contact_number" class="required">Contact number</label>
+                    <input type="tel" id="contact_number" name="contact_number"
+                        value="{{ form.get('contact_number', '') }}" placeholder="e.g. 09123456789" autocomplete="tel">
+                    <p class="field-error" id="contact_number-error" hidden></p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="address" class="required">Home address</label>
+                <input type="text" id="address" name="address" value="{{ form.get('address', '') }}"
+                    placeholder="House or lot number, street" autocomplete="street-address">
+                <p class="field-error" id="address-error" hidden></p>
+            </div>
+
+            <h2 class="form-section-title">Account</h2>
+            <div class="form-group">
+                <label for="email" class="required">Email address</label>
+                <input type="email" id="email" name="email" value="{{ form.get('email', '') }}" autocomplete="email">
+                <p class="form-hint">You will use this email to log in.</p>
+                <p class="field-error" id="email-error" hidden></p>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="password" class="required">Password</label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="password" id="password" name="password" autocomplete="new-password"
+                            style="width: 100%; padding-right: 2.5rem;">
+                        <button type="button" id="toggle-password-icon"
+                            style="position: absolute; right: 12px; background: none; border: none; cursor: pointer; color: #64748b; display: flex; align-items: center; padding: 0;"
+                            aria-label="Toggle password visibility">
+                            <svg id="eye-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="form-hint">At least 8 characters.</p>
+                    <p class="field-error" id="password-error" hidden></p>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password" class="required">Confirm password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password">
+                    <p class="field-error" id="confirm_password-error" hidden></p>
+                </div>
+            </div>
+
+            <div class="form-group show-password">
+                <input type="checkbox" id="show-password">
+                <label for="show-password">Show passwords</label>
+            </div>
+
+            <button type="submit" class="btn" id="register-button">Create account</button>
+        </form>
+
+        <p class="register-footer">Already have an account? <a href="{{ url_for('login') }}">Log in</a>.</p>
+        <p class="register-note">Your account must be approved by the barangay staff before you can log in.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script src="{{ url_for('static', filename='js/public/register.js') }}" defer></script>
+<!-- Inline script para sa toggle ng password visibility gamit ang icon o checkbox -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        var passwordInput = document.getElementById("password");
+        var confirmPasswordInput = document.getElementById("confirm_password");
+        var showPasswordCheckbox = document.getElementById("show-password");
+        var togglePasswordBtn = document.getElementById("toggle-password-icon");
+        var eyeIcon = document.getElementById("eye-icon");
+
+        function setPasswordVisibility(isVisible) {
+            if (passwordInput) passwordInput.type = isVisible ? "text" : "password";
+            if (confirmPasswordInput) confirmPasswordInput.type = isVisible ? "text" : "password";
+            if (showPasswordCheckbox) showPasswordCheckbox.checked = isVisible;
+            if (eyeIcon) {
+                eyeIcon.style.stroke = isVisible ? "#2563eb" : "#64748b";
+            }
+        }
+
+        if (togglePasswordBtn && passwordInput) {
+            togglePasswordBtn.addEventListener("click", function (e) {
+                e.preventDefault();
+                var isCurrentlyPassword = passwordInput.type === "password";
+                setPasswordVisibility(isCurrentlyPassword);
+            });
+        }
+
+        if (showPasswordCheckbox) {
+            showPasswordCheckbox.addEventListener("change", function () {
+                setPasswordVisibility(showPasswordCheckbox.checked);
+            });
+        }
+    });
+</script>
+{% endblock %}

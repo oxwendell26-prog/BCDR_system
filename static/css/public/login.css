@@ -1,0 +1,134 @@
+/* =============================================================================
+   LOGIN PAGE STYLESHEET (static/css/public/login.css)
+   Disenyo para sa centered auth card, mga input fields, at error states.
+   ============================================================================= */
+
+/* Paggawa ng sapat na espasyo at pag-center sa login card */
+.auth-card {
+    max-width: 440px;
+    margin: 3.5rem auto;
+    padding: 2.5rem;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+.auth-card h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+    font-size: 0.95rem;
+    color: #64748b;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+}
+
+/* Form Groups at Inputs */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.4rem;
+}
+
+/* Red asterisk para sa required fields */
+.form-group label.required::after {
+    content: " *";
+    color: #dc2626;
+}
+
+.form-group input[type="email"],
+.form-group input[type="password"] {
+    width: 100%;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    color: #1e293b;
+    background-color: #f8fafc;
+    transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #2563eb;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Show Password Checkbox Styling */
+.form-group.show-password {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-group.show-password input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #2563eb;
+    cursor: pointer;
+}
+
+.form-group.show-password label {
+    margin-bottom: 0;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+}
+
+/* Field Error Messages (kapag may mali sa pag-input) */
+.field-error {
+    font-size: 0.8rem;
+    color: #dc2626;
+    margin-top: 0.35rem;
+}
+
+/* Full Width Submit Button */
+#login-button {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Footer Links at Notes sa ibaba ng card */
+.auth-footer {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-bottom: 0.75rem;
+}
+
+.auth-footer a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.auth-footer a:hover {
+    text-decoration: underline;
+}
+
+.auth-note {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    text-align: center;
+    line-height: 1.4;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 1rem;
+    margin-top: 1rem;
+}

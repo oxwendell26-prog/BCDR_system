@@ -1,0 +1,85 @@
+/* =============================================================================
+   NEW REQUEST STYLESHEET
+   Disenyo para sa form kung saan nagsusumite ng bagong dokumento ang residente.
+   ============================================================================= */
+
+/* Form Card: Sentral na kahon ng porma */
+.form-card {
+    max-width: 700px;
+    /* Nililimitahan ang lapad para madaling basahin at i-type */
+    margin: 0 auto;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.form-card h1 {
+    font-size: 1.75rem;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.form-subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+}
+
+/* Form Groups at Inputs */
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+/* Marka para sa mga zorhating field na may asterisk (*) */
+.form-group label.required::after {
+    content: " *";
+    color: #dc2626;
+    /* Kulay pulang bituin/tuldok */
+}
+
+.form-group input[type="text"],
+.form-group select,
+.form-group textarea,
+.form-group input[type="file"] {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 1rem;
+    color: #1e293b;
+    background-color: #f8fafc;
+    transition: border-color 0.2s, background-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    /* Nagiging asul kapag naka-focus o tina-typean */
+    background-color: #ffffff;
+}
+
+/* Form Hint: Maliit na paalala sa ibaba ng input */
+.form-hint {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.35rem;
+}
+
+/* Field Error: Mensahe kapag may mali o kulang sa input */
+.field-error {
+    font-size: 0.8rem;
+    color: #dc2626;
+    margin-top: 0.35rem;
+}

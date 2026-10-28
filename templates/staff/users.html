@@ -1,0 +1,91 @@
+{# Ipinapahiwatig na gagamitin nito ang pangkalahatang layout (base.html) para sa navigation at footer #}
+{% extends "base.html" %}
+
+{# Nilalagyan ng pamagat ang browser tab gamit ang pangalan o email ng user #}
+{% block title %}User Details - {{ target_user.email }}{% endblock %}
+
+{% block page_css %}
+{# Pag-attach ng nakalaang CSS stylesheet para sa pahina ng detalye ng user #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff/user.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    {# Header ng pahina: Nagpapakita ng pangunahing impormasyon at status ng user #}
+    <div class="details-header">
+        <div>
+            <h1>User Account Details</h1>
+            <p class="details-subtitle">Viewing profile and account information for {{ target_user.email }}</p>
+        </div>
+        <div>
+            {# Status Badge: Nagbabago ang kulay depende kung active, pending, o rejected ang account #}
+            <span class="badge badge-large badge-{{ target_user.status }}">
+                {{ 'Approved' if target_user.status == 'active' else target_user.status|capitalize }}
+            </span>
+        </div>
+    </div>
+
+    {# Grid para sa mga detalye at aksyon #}
+    <div class="details-grid">
+
+        {# Kolum sa Kaliwa: Personal at Account Information #}
+        <div class="card info-card">
+            <h2>Account Information</h2>
+            <ul class="info-list">
+                <li><strong>Role / Type:</strong> {{ target_user.role|capitalize }}</li>
+                <li><strong>Email Address:</strong> {{ target_user.email }}</li>
+                <li><strong>Account Status:</strong> {{ target_user.status|capitalize }}</li>
+                <li><strong>Date Registered:</strong> {{ target_user.created_at }}</li>
+            </ul>
+
+            {# Kung ang user ay isang residente, ipapakita ang kanilang karagdagang personal details #}
+            {% if resident_profile %}
+            <h2 class="section-title">Resident Profile Details</h2>
+            <ul class="info-list">
+                <li><strong>Full Name:</strong> {{ resident_profile.last_name }}, {{ resident_profile.first_name }} {{
+                    resident_profile.middle_name or '' }}</li>
+                <li><strong>Birthdate:</strong> {{ resident_profile.birthdate }}</li>
+                <li><strong>Sex:</strong> {{ resident_profile.sex }}</li>
+                <li><strong>Civil Status:</strong> {{ resident_profile.civil_status }}</li>
+                <li><strong>Purok:</strong> {{ resident_profile.purok }}</li>
+                <li><strong>Home Address:</strong> {{ resident_profile.address }}</li>
+                <li><strong>Contact Number:</strong> {{ resident_profile.contact_number }}</li>
+            </ul>
+            {% endif %}
+        </div>
+
+        {# Kolum sa Kanan: Mga Mabilisang Aksyon (Actions) para sa Staff/Admin #}
+        <div class="card sidebar-card">
+            <h2>Administrative Actions</h2>
+
+            <div class="action-section">
+                <p class="action-hint">Manage this user's account status or permissions below.</p>
+
+                {# Kung ang account ay pending o rejected, may option ang staff na i-approve ito #}
+                {% if target_user.status != 'active' %}
+                <form method="post" action="{{ url_for('resident_decision', user_id=target_user.id) }}">
+                    <input type="hidden" name="decision" value="approve">
+                    <button type="submit" class="btn btn-success btn-full">Approve Account</button>
+                </form>
+                {% endif %}
+
+                {# Kung ang account ay pending pa lang, pwedeng i-reject ng staff #}
+                {% if target_user.status == 'pending' %}
+                <form method="post" action="{{ url_for('resident_decision', user_id=target_user.id) }}"
+                    data-confirm="Reject this user account?">
+                    <input type="hidden" name="decision" value="reject">
+                    <button type="submit" class="btn btn-danger btn-full">Reject Account</button>
+                </form>
+                {% endif %}
+
+                {# Button pabalik sa listahan ng mga residente #}
+                <div class="back-link-wrapper">
+                    <a href="{{ url_for('residents_list') }}" class="btn btn-outline btn-full">Back to Residents
+                        List</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

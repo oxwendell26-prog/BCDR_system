@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Document Types{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff/document_types.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container" id="doc-types-section">
+    <div class="page-header">
+        <div>
+            <h1>Document Types</h1>
+            <p class="page-subtitle">Configure available barangay documents, processing fees, and requirements.</p>
+        </div>
+        <button type="button" class="btn btn-primary" onclick="openAddModal()">
+            + Add New Document Type
+        </button>
+    </div>
+
+    <div class="table-wrapper card">
+        <table id="doc-types-table">
+            <thead>
+                <tr>
+                    <th>Document Name</th>
+                    <th>Processing Fee</th>
+                    <th>Processing Time</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in document_types %}
+                <tr>
+                    <td>
+                        <strong>{{ doc.name }}</strong>
+                        {% if doc.description %}
+                        <span class="doc-meta">{{ doc.description }}</span>
+                        {% endif %}
+                        {% if doc.requirements %}
+                        <span class="doc-requirements">📋 Req: {{ doc.requirements }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if doc.fee and doc.fee > 0 %}
+                        <strong>₱{{ "%.2f"|format(doc.fee) }}</strong>
+                        {% else %}
+                        <span class="badge badge-free">Free</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ doc.processing_days or '1-2' }} day(s)</td>
+                    <td>
+                        {% if doc.is_active %}
+                        <span class="badge badge-active">Active</span>
+                        {% else %}
+                        <span class="badge badge-inactive">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="row-actions">
+                            <button type="button" class="btn btn-outline btn-small btn-edit"
+                                data-doc='{{ doc|tojson }}'>Edit</button>
+
+                            <form method="post" action="{{ url_for('toggle_document_type', doc_id=doc.id) }}"
+                                class="inline-form">
+                                {% if doc.is_active %}
+                                <button type="submit" class="btn btn-danger btn-small">Deactivate</button>
+                                {% else %}
+                                <button type="submit" class="btn btn-success btn-small">Activate</button>
+                                {% endif %}
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="empty-row">No document types configured yet. Click "+ Add New Document Type"
+                        to create one.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# Modal Dialog para sa Pagdagdag / Pag-edit ng Document Type #}
+<div class="modal-overlay" id="doc-type-modal" hidden>
+    <div class="modal-card">
+        <div class="modal-header">
+            <h2 id="modal-title">Add Document Type</h2>
+            <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="doc-type-form" method="post" action="{{ url_for('save_document_type') }}">
+            <input type="hidden" id="doc_id" name="doc_id" value="">
+
+            <div class="form-group">
+                <label for="name" class="required">Document Name</label>
+                <input type="text" id="name" name="name" placeholder="e.g. Barangay Clearance" required>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" rows="2"
+                    placeholder="Brief explanation or purpose of this document"></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="fee" class="required">Fee (PHP)</label>
+                    <input type="number" step="0.01" min="0" id="fee" name="fee" placeholder="0.00" value="0.00"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label for="processing_days">Processing Time (Days)</label>
+                    <input type="number" min="1" id="processing_days" name="processing_days" placeholder="e.g. 1"
+                        value="1">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="requirements">Requirements / Needed Credentials</label>
+                <input type="text" id="requirements" name="requirements"
+                    placeholder="e.g. Valid ID, Community Tax Certificate">
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Document Type</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+    function openAddModal() {
+        document.getElementById('modal-title').textContent = 'Add Document Type';
+        document.getElementById('doc_id').value = '';
+        document.getElementById('name').value = '';
+        document.getElementById('description').value = '';
+        document.getElementById('fee').value = '0.00';
+        document.getElementById('processing_days').value = '1';
+        document.getElementById('requirements').value = '';
+        document.getElementById('doc-type-modal').hidden = false;
+    }
+
+    function closeModal() {
+        document.getElementById('doc-type-modal').hidden = true;
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const editButtons = document.querySelectorAll('.btn-edit');
+        editButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                const docData = JSON.parse(this.getAttribute('data-doc'));
+
+                document.getElementById('modal-title').textContent = 'Edit Document Type';
+                document.getElementById('doc_id').value = docData.id;
+                document.getElementById('name').value = docData.name;
+                document.getElementById('description').value = docData.description || '';
+                document.getElementById('fee').value = docData.fee;
+                document.getElementById('processing_days').value = docData.processing_days || 1;
+                document.getElementById('requirements').value = docData.requirements || '';
+
+                document.getElementById('doc-type-modal').hidden = false;
+            });
+        });
+    });
+</script>
+{% endblock %}

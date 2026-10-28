@@ -1,0 +1,71 @@
+/* =============================================================================
+   MY REQUESTS STYLESHEET
+   Naglalaman ng disenyo para sa pahina ng listahan ng lahat ng hiniling na dokumento.
+   ============================================================================= */
+
+/* Page Header: Pamagat at paliwanag sa itaas */
+.page-header {
+    margin-bottom: 2rem;
+}
+
+.page-header h1 {
+    font-size: 1.8rem;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.page-subtitle {
+    color: #64748b;
+    font-size: 1rem;
+}
+
+/* Requests List Card: Pundasyon o kahon na bumabalot sa talahanayan */
+.requests-list-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Table Wrapper: Nagbibigay ng pahalang na scroll para sa maliliit na screen */
+.table-wrapper {
+    overflow-x: auto;
+}
+
+/* Requests Table: Estruktura ng table ng mga request */
+.requests-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+.requests-table th,
+.requests-table td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.requests-table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+}
+
+.requests-table tr:hover {
+    background-color: #f1f5f9;
+    /* Magbabago ang kulay ng row kapag tinapatan ng mouse */
+}
+
+/* Empty State: Hitsura kapag wala pang naisumiteng request ang residente */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #64748b;
+}
+
+.empty-state p {
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
+}

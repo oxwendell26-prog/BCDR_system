@@ -1,0 +1,183 @@
+/* =============================================================================
+   REVIEW REQUEST STYLESHEET
+   Disenyo para sa detalyadong pagsusuri ng request, remarks form, at attachments.
+   ============================================================================= */
+
+/* Details Header */
+.details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.details-header h1 {
+    font-size: 1.75rem;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.request-id {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.details-subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+.badge-large {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 9999px;
+}
+
+/* Details Grid: Dalawang kolum layout para sa impormasyon at mga file */
+.details-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .details-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.info-card,
+.sidebar-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.info-card h2,
+.sidebar-card h2 {
+    font-size: 1.2rem;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+.info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1.5rem 0;
+}
+
+.info-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed #f1f5f9;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+.info-list li strong {
+    color: #1e293b;
+}
+
+/* Review Form Section */
+.review-form-section {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1.25rem;
+}
+
+.review-form-section h2 {
+    border-bottom: none;
+    margin-bottom: 0.75rem;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.form-group label.required::after {
+    content: " *";
+    color: #dc2626;
+}
+
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 1rem;
+    color: #1e293b;
+    background-color: #f8fafc;
+}
+
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #2563eb;
+    background-color: #ffffff;
+}
+
+.form-hint {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.35rem;
+}
+
+/* Alert Warning */
+.alert-warning {
+    background-color: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+/* Attachment List */
+.attachment-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.attachment-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+}
+
+.attachment-list a {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+.attachment-list a:hover {
+    text-decoration: underline;
+}
+
+.attachment-date {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.no-attachments {
+    color: #64748b;
+    font-size: 0.9rem;
+    font-style: italic;
+}

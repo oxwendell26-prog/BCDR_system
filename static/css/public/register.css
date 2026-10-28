@@ -1,0 +1,171 @@
+/* =============================================================================
+   REGISTER PAGE STYLESHEET (static/css/public/register.css)
+   Disenyo para sa mas malapad na registration card, form sections, at grids.
+   ============================================================================= */
+
+/* Paggawa ng malapad at maayos na card para sa maramihang input fields */
+.register-card {
+    max-width: 760px;
+    margin: 2.5rem auto;
+    padding: 2.5rem;
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+}
+
+.register-card h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.register-subtitle {
+    font-size: 0.95rem;
+    color: #64748b;
+    margin-bottom: 2rem;
+    line-height: 1.5;
+}
+
+/* Mga Subheading para sa iba't ibang seksyon ng form */
+.form-section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #2563eb;
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #e2e8f0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.form-section-title:first-of-type {
+    margin-top: 0;
+}
+
+/* Form Groups at Inputs */
+.form-group {
+    margin-bottom: 1.25rem;
+    flex: 1;
+    min-width: 200px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.4rem;
+}
+
+/* Red asterisk para sa mga zorubhang/required fields */
+.form-group label.required::after {
+    content: " *";
+    color: #dc2626;
+}
+
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group input[type="password"],
+.form-group input[type="date"],
+.form-group input[type="tel"],
+.form-group select {
+    width: 100%;
+    padding: 0.7rem 0.875rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    color: #1e293b;
+    background-color: #f8fafc;
+    transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #2563eb;
+    background-color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Grid layout para sa magkakatabing input fields */
+.form-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Mga gabay at error sa ilalim ng inputs */
+.form-hint {
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.3rem;
+}
+
+.field-error {
+    font-size: 0.8rem;
+    color: #dc2626;
+    margin-top: 0.3rem;
+}
+
+/* Show Password Checkbox Styling */
+.form-group.show-password {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-group.show-password input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #2563eb;
+    cursor: pointer;
+}
+
+.form-group.show-password label {
+    margin-bottom: 0;
+    font-weight: 500;
+    color: #475569;
+    cursor: pointer;
+}
+
+/* Full Width Submit Button */
+#register-button {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Footer Links at Notes sa ibaba ng card */
+.register-footer {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-bottom: 0.75rem;
+}
+
+.register-footer a {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.register-footer a:hover {
+    text-decoration: underline;
+}
+
+.register-note {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    text-align: center;
+    line-height: 1.4;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 1rem;
+    margin-top: 1rem;
+}

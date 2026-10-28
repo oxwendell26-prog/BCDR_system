@@ -1,0 +1,158 @@
+/* =============================================================================
+   REQUEST DETAILS STYLESHEET
+   Disenyo para sa indibidwal na pahina ng detalye ng isang request at mga attachment nito.
+   ============================================================================= */
+
+/* Details Header: Pamagat at malaking status badge sa itaas */
+.details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.details-header h1 {
+    font-size: 1.75rem;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.request-id {
+    color: #64748b;
+    font-weight: 500;
+}
+
+.details-subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+/* Malaking Badge para sa Header */
+.badge-large {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    border-radius: 9999px;
+}
+
+/* Details Grid: Paghahati ng screen sa dalawang kolum (Impormasyon at Sidebar ng Files) */
+.details-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    /* Mas malawak ang kaliwa kaysa sa kanan */
+    gap: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .details-grid {
+        grid-template-columns: 1fr;
+        /* Nagiging isang kolum kapag maliit ang screen ng cellphone */
+    }
+}
+
+/* Info Card at Sidebar Card */
+.info-card,
+.sidebar-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.info-card h2,
+.sidebar-card h2 {
+    font-size: 1.2rem;
+    color: #1e293b;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.5rem;
+}
+
+/* Info List: Listahan ng mga detalye ng dokumento */
+.info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.info-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px dashed #f1f5f9;
+    font-size: 0.95rem;
+    color: #334155;
+}
+
+.info-list li strong {
+    color: #1e293b;
+}
+
+/* Staff Remarks Box: Kahon para sa komento ng staff kung mayroon man */
+.staff-remarks {
+    margin-top: 1.5rem;
+    background-color: #f8fafc;
+    border-left: 4px solid #2563eb;
+    padding: 1rem;
+    border-radius: 0 6px 6px 0;
+}
+
+.staff-remarks h3 {
+    font-size: 1rem;
+    color: #1e293b;
+    margin-bottom: 0.5rem;
+}
+
+.staff-remarks p {
+    font-size: 0.95rem;
+    color: #475569;
+    margin: 0;
+}
+
+/* Attachment List: Listahan ng mga na-upload na dokumento o ID */
+.attachment-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.attachment-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 0.9rem;
+}
+
+.attachment-list a {
+    color: #2563eb;
+    text-decoration: none;
+}
+
+.attachment-list a:hover {
+    text-decoration: underline;
+}
+
+.attachment-date {
+    font-size: 0.75rem;
+    color: #94a3b8;
+}
+
+.no-attachments {
+    color: #64748b;
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+/* Cancel Section */
+.cancel-section {
+    margin-top: 1.5rem;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1rem;
+}
+
+.btn-full {
+    width: 100%;
+}

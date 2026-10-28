@@ -1,0 +1,66 @@
+{# Ipinapahiwatig na gagamitin nito ang pangkalahatang layout (base.html) para sa navigation at footer #}
+{% extends "base.html" %}
+
+{# Nilalagyan ng pamagat ang browser tab ng "New Request" #}
+{% block title %}New Request{% endblock %}
+
+{% block page_css %}
+{# Pag-attach ng nakalaang CSS stylesheet para sa porma ng paggawa ng request #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/resident/new-request.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card form-card">
+        <h1>Request a Barangay Document</h1>
+        <p class="form-subtitle">Fill out the form below to submit a new document request. Fields marked with * are
+            required.</p>
+
+        {# Magsisimula ang form; gumagamit ng multipart/form-data dahil may kasama itong file uploads #}
+        <form id="new-request-form" method="post" action="{{ url_for('new_request') }}" enctype="multipart/form-data"
+            novalidate>
+
+            {# Pagpili ng Uri ng Dokumento mula sa database #}
+            <div class="form-group">
+                <label for="document_type_id" class="required">Document type</label>
+                <select id="document_type_id" name="document_type_id" autofocus>
+                    <option value="">Select document type...</option>
+                    {% for dt in document_types %}
+                    <option value="{{ dt.id }}" {% if form.get('document_type_id')==dt.id|string %}selected{% endif %}>
+                        {{ dt.name }} — ₱{{ "%.2f"|format(dt.fee) }} ({{ dt.processing_days }} day{{ '' if
+                        dt.processing_days == 1 else 's' }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="form-hint" id="document-hint">Select a document to see its requirements and description.</p>
+                <p class="field-error" id="document_type_id-error" hidden></p>
+            </div>
+
+            {# Paglalagay ng Layunin o Purpose ng pag-request #}
+            <div class="form-group">
+                <label for="purpose" class="required">Purpose</label>
+                <textarea id="purpose" name="purpose" rows="3"
+                    placeholder="State clearly why you need this document (e.g. Employment, Local Employment, School Requirement)">{{ form.get('purpose', '') }}</textarea>
+                <p class="field-error" id="purpose-error" hidden></p>
+            </div>
+
+            {# Pag-upload ng mga supporting files, PDF requirements, o ID #}
+            <div class="form-group">
+                <label for="attachments">Supporting Files / Requirements (PDF & Images)</label>
+                <input type="file" id="attachments" name="attachments" multiple accept=".pdf,.png,.jpg,.jpeg">
+                <p class="form-hint">You can upload up to 5 files. Allowed formats: <strong>PDF documents</strong>, PNG,
+                    JPG, JPEG (Max 5MB total).</p>
+                <p class="field-error" id="attachments-error" hidden></p>
+            </div>
+
+            {# Button para i-submit o ipasa ang request #}
+            <button type="submit" class="btn" id="submit-request-btn">Submit Request</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+{# Pag-attach ng JavaScript para sa client-side validation ng porma #}
+<script src="{{ url_for('static', filename='js/resident/new-request.js') }}" defer></script>
+{% endblock %}

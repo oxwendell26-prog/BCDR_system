@@ -1,0 +1,96 @@
+{# Ipinapahiwatig na gagamitin nito ang pangkalahatang layout (base.html) para sa navigation at footer #}
+{% extends "base.html" %}
+
+{# Nilalagyan ng pamagat ang browser tab gamit ang ID ng request #}
+{% block title %}Request #{{ req.id }}{% endblock %}
+
+{% block page_css %}
+{# Pag-attach ng CSS para sa pahina ng mga detalye ng request #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/resident/request-details.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="details-header">
+        <div>
+            <h1>Request Details <span class="request-id">#{{ req.id }}</span></h1>
+            <p class="details-subtitle">Submitted on {{ req.created_at }}</p>
+        </div>
+        <div>
+            {# Status Badge: Nagbabago ang kulay depende sa estado ng request #}
+            <span class="badge badge-large badge-{{ req.status|lower|replace(' ', '-') }}">
+                {{ req.status }}
+            </span>
+        </div>
+    </div>
+
+    {# Kapag ang status ay 'Released', magpapakita ang direktang download banner para sa PDF #}
+    {% if req.status == 'Released' %}
+    <div
+        style="margin-bottom: 2rem; background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+        <div>
+            <h3 style="color: #065f46; font-size: 1.15rem; font-weight: 700; margin-bottom: 0.35rem;">Your Official
+                Document is Ready!</h3>
+            <p style="color: #047857; font-size: 0.95rem; margin: 0;">This document has been successfully released by
+                the barangay. You can now download your digital copy.</p>
+        </div>
+        <a href="{{ url_for('download_document_pdf', request_id=req.id) }}"
+            style="display: inline-flex; align-items: center; gap: 0.5rem; background-color: #16a34a; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 1rem; box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2); transition: background-color 0.2s;">
+            📥 Download Document as PDF
+        </a>
+    </div>
+    {% endif %}
+
+    {# Grid ng mga impormasyon tungkol sa dokumento at transaksyon #}
+    <div class="details-grid">
+        <div class="card info-card">
+            <h2>Document Information</h2>
+            <ul class="info-list">
+                <li><strong>Document Type:</strong> {{ req.document_name }}</li>
+                <li><strong>Fee:</strong> ₱{{ "%.2f"|format(req.fee) }}</li>
+                <li><strong>Processing Time:</strong> {{ req.processing_days }} day{{ '' if req.processing_days == 1
+                    else 's' }}</li>
+                <li><strong>Purpose:</strong> {{ req.purpose }}</li>
+                <li><strong>Requirements Needed:</strong> {{ req.requirements or 'None specified' }}</li>
+            </ul>
+
+            {# Kung may remarks o mensahe ang staff (hal. para sa compliance o rejection) #}
+            {% if req.remarks %}
+            <div class="staff-remarks">
+                <h3>Staff Remarks</h3>
+                <p>{{ req.remarks }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card sidebar-card">
+            <h2>Attached Files</h2>
+            {# Listahan ng mga na-upload na file ng residente #}
+            {% if attachments %}
+            <ul class="attachment-list">
+                {% for att in attachments %}
+                <li>
+                    <a href="{{ url_for('view_attachment', attachment_id=att.id) }}" target="_blank">
+                        {{ att.original_name }}
+                    </a>
+                    <span class="attachment-date">{{ att.uploaded_at[:10] }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="no-attachments">No files attached to this request.</p>
+            {% endif %}
+
+            {# Button para mag-cancel ng request (Lilitaw lamang kung ang status ay 'Submitted' pa lang) #}
+            {% if req.status == 'Submitted' %}
+            <div class="cancel-section">
+                <form method="post" action="{{ url_for('cancel_request', request_id=req.id) }}"
+                    data-confirm="Are you sure you want to cancel this request?">
+                    <button type="submit" class="btn btn-danger btn-small btn-full">Cancel Request</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

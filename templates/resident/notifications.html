@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 2rem auto; padding: 0 1rem;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+        <div>
+            <h1 style="font-size: 1.75rem; font-weight: 700; color: #1e293b; margin-bottom: 0.25rem;">Notifications</h1>
+            <p style="color: #64748b; font-size: 0.95rem; margin: 0;">Updates and alerts regarding document requests.
+            </p>
+        </div>
+
+        {% if notifications %}
+        <form method="post" action="{{ url_for('clear_notifications') }}"
+            onsubmit="return confirm('Are you sure you want to clear all notifications?');">
+            <button type="submit"
+                style="padding: 0.5rem 1rem; background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer;">
+                Clear All
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="card"
+        style="background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden;">
+        {% if notifications %}
+        <div style="display: flex; flex-direction: column;">
+            {% for notif in notifications %}
+            <div
+                style="padding: 1.25rem; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: flex-start; background-color: {% if not notif.is_read %}#f8fafc{% else %}#ffffff{% endif %}; gap: 1rem;">
+                <div style="flex-grow: 1;">
+                    <p style="margin: 0 0 0.4rem 0; color: #1e293b; font-size: 0.95rem; line-height: 1.4;">{{
+                        notif.message }}</p>
+                    <span style="font-size: 0.75rem; color: #64748b;">{{ notif.created_at }}</span>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 0.5rem; white-space: nowrap;">
+                    {% if notif.request_id %}
+                    {% if current_user and current_user.role in ('staff', 'admin') %}
+                    <!-- Kapag Staff o Admin, didiretso sa Review Request page -->
+                    <a href="{{ url_for('review_request', request_id=notif.request_id) }}"
+                        style="padding: 0.35rem 0.75rem; background-color: #2563eb; color: white; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 500;">
+                        Review Request
+                    </a>
+                    {% else %}
+                    <!-- Kapag Resident, didiretso sa Request Details page kung saan pwede nang i-download ang PDF kapag Released na -->
+                    <a href="{{ url_for('request_details', request_id=notif.request_id) }}"
+                        style="padding: 0.35rem 0.75rem; background-color: #2563eb; color: white; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 500;">
+                        View Request
+                    </a>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- Button para i-delete ang partikular na notification -->
+                    <form method="post" action="{{ url_for('delete_notification', notif_id=notif.id) }}"
+                        style="margin: 0;">
+                        <button type="submit" title="Delete notification"
+                            style="background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 1.1rem; padding: 0.2rem 0.4rem; font-weight: bold;"
+                            onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#94a3b8'">
+                            &times;
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="padding: 3rem; text-align: center; color: #64748b;">
+            <p style="margin: 0; font-size: 0.95rem;">You have no notifications yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

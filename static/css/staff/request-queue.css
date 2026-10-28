@@ -1,0 +1,99 @@
+/* =============================================================================
+   REQUEST QUEUE STYLESHEET
+   Disenyo para sa queue header, status filter dropdown, at requests table.
+   ============================================================================= */
+
+/* Queue Header at Filter */
+.queue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.queue-header h1 {
+    font-size: 1.8rem;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.queue-subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+.queue-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.queue-filter label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+}
+
+.queue-filter select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background-color: #f8fafc;
+    font-size: 0.95rem;
+    color: #1e293b;
+}
+
+.queue-filter select:focus {
+    outline: none;
+    border-color: #2563eb;
+    background-color: #ffffff;
+}
+
+/* Table Wrapper at Estruktura */
+.table-wrapper {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow-x: auto;
+}
+
+.requests-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+.requests-table th,
+.requests-table td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.requests-table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+}
+
+.requests-table tr:hover {
+    background-color: #f1f5f9;
+}
+
+.table-subtext {
+    display: block;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+.empty-row {
+    text-align: center;
+    color: #64748b;
+    padding: 2.5rem !important;
+    font-style: italic;
+}

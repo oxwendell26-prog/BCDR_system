@@ -1,0 +1,109 @@
+/* =============================================================================
+   REPORTS STYLESHEET
+   Disenyo para sa date range filter form, summary stat cards, at report breakdown table.
+   ============================================================================= */
+
+.reports-header {
+    margin-bottom: 1.5rem;
+}
+
+.reports-header h1 {
+    font-size: 1.8rem;
+    color: #1e293b;
+    margin-bottom: 0.25rem;
+}
+
+.reports-subtitle {
+    color: #64748b;
+    font-size: 0.95rem;
+}
+
+/* Reports Filter Form Card */
+.reports-filter-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.reports-form {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.reports-form .form-group {
+    margin-bottom: 0;
+    flex: 1;
+    min-width: 180px;
+}
+
+.reports-form label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.35rem;
+}
+
+.reports-form input[type="date"] {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background-color: #f8fafc;
+    color: #1e293b;
+}
+
+.reports-form input[type="date"]:focus {
+    outline: none;
+    border-color: #2563eb;
+    background-color: #ffffff;
+}
+
+.filter-action {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Reports Table Card */
+.reports-table-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.reports-table-card h2 {
+    font-size: 1.25rem;
+    color: #1e293b;
+    margin-bottom: 1rem;
+}
+
+.reports-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.95rem;
+}
+
+.reports-table th,
+.reports-table td {
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.reports-table th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-weight: 600;
+}
+
+.reports-table tr:hover {
+    background-color: #f1f5f9;
+}

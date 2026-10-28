@@ -1,0 +1,74 @@
+{# Gagamitin nito ang pangkalahatang layout (base.html) para sa navigation at footer #}
+{% extends "base.html" %}
+
+{# Pamagat ng browser tab #}
+{% block title %}Welcome - Barangay Document Request System{% endblock %}
+
+{% block page_css %}
+{# Pag-attach ng sariling CSS para sa landing page #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/public/index.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <div class="container hero-container">
+        <div class="hero-content">
+            <span class="hero-badge">Official Online Service</span>
+            <h1>Barangay Clearance & Document Request System</h1>
+            <p>Request Barangay Clearances, Certificates of Indigency, and other official documents quickly, securely,
+                and directly online without the hassle of long lines.</p>
+
+            {# Mga pindutan depende kung naka-log in na o bisita pa lamang #}
+            <div class="hero-actions">
+                {% if current_user.is_authenticated %}
+                {% if current_user.role == 'resident' %}
+                <a href="{{ url_for('dashboard') }}" class="btn">Go to Dashboard</a>
+                <a href="{{ url_for('new_request') }}" class="btn btn-outline">Request a Document</a>
+                {% elif current_user.role == 'staff' %}
+                <a href="{{ url_for('staff_dashboard') }}" class="btn">Go to Staff Dashboard</a>
+                {% endif %}
+                {% else %}
+                <a href="{{ url_for('register') }}" class="btn">Register as Resident</a>
+                <a href="{{ url_for('login') }}" class="btn btn-outline">Log in to Account</a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="hero-card-preview">
+            <div class="card preview-card-box">
+                <h3>⚡ Fast & Efficient Process</h3>
+                <p>Submit your requests anytime and track their real-time status while being processed by barangay
+                    staff.</p>
+                <ul class="preview-features">
+                    <li>✓ Barangay Clearance</li>
+                    <li>✓ Certificate of Indigency</li>
+                    <li>✓ Residency Certificate</li>
+                    <li>✓ Online Status Tracking</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Seksyon ng mga Hakbang (How It Works) #}
+<div class="container steps-section">
+    <h2 class="section-title">How It Works</h2>
+    <div class="steps-grid">
+        <div class="step-card">
+            <div class="step-number">1</div>
+            <h3>Register</h3>
+            <p>Create your resident account and wait for account approval by the barangay staff.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-number">2</div>
+            <h3>Request</h3>
+            <p>Select your needed document, state your purpose, and upload required attachments.</p>
+        </div>
+        <div class="step-card">
+            <div class="step-number">3</div>
+            <h3>Claim</h3>
+            <p>Get notified once your document is ready and pick it up at the barangay hall.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

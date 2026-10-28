@@ -1,0 +1,149 @@
+{# Ipinapahiwatig na gagamitin nito ang pangkalahatang layout (base.html) para sa navigation at footer #}
+{% extends "base.html" %}
+
+{# Nilalagyan ng pamagat ang browser tab ng "My Requests" #}
+{% block title %}My Requests{% endblock %}
+
+{% block page_css %}
+{# Pag-attach ng nakalaang CSS stylesheet para sa disenyo ng listahan ng mga request #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/resident/my-requests.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    {# Header ng pahina: Pamagat at maikling paliwanag para sa residente #}
+    <div class="page-header"
+        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <div>
+            <h1>My Document Requests</h1>
+            <p class="page-subtitle">View the history and status of all your requested barangay documents.</p>
+        </div>
+
+        {# Delete All Button #}
+        {% if requests %}
+        <form method="post" action="{{ url_for('delete_all_resident_requests') }}"
+            onsubmit="return confirm('Are you sure you want to delete all your requests?');" style="margin: 0;">
+            <button type="submit" class="btn btn-danger btn-small"
+                style="background-color: #dc2626; color: white; padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; border: none; cursor: pointer;">
+                🗑️ Delete All Requests
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    {# Search Bar Section #}
+    {% if requests %}
+    <div style="margin-bottom: 1.5rem;">
+        <input type="text" id="requestSearchInput" placeholder="Search by Document Type, Purpose, or Status..."
+            style="width: 100%; padding: 0.75rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.95rem; outline: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"
+            onkeyup="filterRequestsTable()">
+    </div>
+    {% endif %}
+
+    {# Seksyon ng Talahanayan (Table) para sa mga request #}
+    <div class="card requests-list-card">
+
+        {# Sinusuri kung may laman ba ang listahan ng mga request ng residente #}
+        {% if requests %}
+        <div class="table-wrapper">
+            <table class="requests-table" id="requestsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Document Type</th>
+                        <th>Purpose</th>
+                        <th>Status</th>
+                        <th>Date Requested</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Loop o pag-ikot sa bawat request na isinumite ng residente #}
+                    {% for req in requests %}
+                    <tr>
+                        {# Natatanging ID o numero ng request #}
+                        <td>#{{ req.id }}</td>
+
+                        {# Pangalan ng dokumento na hiniling #}
+                        <td><strong>{{ req.document_name }}</strong></td>
+
+                        {# Layunin kung bakit kailangan ang dokumento #}
+                        <td>{{ req.purpose }}</td>
+
+                        {# Status ng request na may kasamang badge para sa kulay #}
+                        <td>
+                            <span class="badge badge-{{ req.status|lower|replace(' ', '-') }}">
+                                {{ req.status }}
+                            </span>
+                        </td>
+
+                        {# Petsa kung kailan ginawa ang request #}
+                        <td>{{ req.created_at[:10] }}</td>
+
+                        {# Pindutan para puntahan ang detalye, mag-download ng PDF kung Released na, o i-delete #}
+                        <td>
+                            <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                                <a href="{{ url_for('request_details', request_id=req.id) }}"
+                                    class="btn btn-small btn-outline">View Details</a>
+
+                                {% if req.status == 'Released' %}
+                                <a href="{{ url_for('download_document_pdf', request_id=req.id) }}"
+                                    class="btn btn-small btn-success">
+                                    📥 Download PDF
+                                </a>
+                                {% endif %}
+
+                                {# Pa-isa-isang Delete Button #}
+                                <form method="post" action="{{ url_for('delete_resident_request', request_id=req.id) }}"
+                                    onsubmit="return confirm('Are you sure you want to delete request #{{ req.id }}?');"
+                                    style="margin: 0;">
+                                    <button type="submit" class="btn btn-small btn-danger"
+                                        style="background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 0.4rem 0.75rem; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% else %}
+        {# Lalabas lamang ang bahaging ito KUNG WALA PA silang kahit anong isinumiteng request #}
+        <div class="empty-state">
+            <p>You haven't submitted any document requests yet.</p>
+            <a href="{{ url_for('new_request') }}" class="btn">Request your first document</a>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+
+{# JavaScript para sa instant filtering ng table gamit ang Search Bar #}
+<script>
+    function filterRequestsTable() {
+        const input = document.getElementById("requestSearchInput");
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById("requestsTable");
+        const tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) {
+            let visible = false;
+            const td = tr[i].getElementsByTagName("td");
+            for (let j = 0; j < td.length - 1; j++) {
+                if (td[j]) {
+                    const textValue = td[j].textContent || td[j].innerText;
+                    if (textValue.toLowerCase().indexOf(filter) > -1) {
+                        visible = true;
+                        break;
+                    }
+                }
+            }
+            tr[i].style.display = visible ? "" : "none";
+        }
+    }
+</script>
+{% endblock %}
