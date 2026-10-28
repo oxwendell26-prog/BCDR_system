@@ -101,7 +101,83 @@ def close_db(exception=None):
         db.close()
 
 
-SCHEMA = """
+SCHEMA_PG = """
+CREATE TABLE IF NOT EXISTS users (
+    id            SERIAL PRIMARY KEY,
+    email         VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role          VARCHAR(50) NOT NULL CHECK (role IN ('resident', 'staff', 'admin')),
+    status        VARCHAR(50) NOT NULL DEFAULT 'pending'
+                  CHECK (status IN ('pending', 'active', 'rejected', 'disabled')),
+    created_at    VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS residents (
+    id             SERIAL PRIMARY KEY,
+    user_id        INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    first_name     VARCHAR(255) NOT NULL,
+    middle_name    VARCHAR(255),
+    last_name      VARCHAR(255) NOT NULL,
+    birthdate      VARCHAR(100) NOT NULL,
+    sex            VARCHAR(50) NOT NULL,
+    civil_status   VARCHAR(50) NOT NULL,
+    purok          VARCHAR(255) NOT NULL,
+    address        TEXT NOT NULL,
+    contact_number VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS document_types (
+    id              SERIAL PRIMARY KEY,
+    name            VARCHAR(255) NOT NULL UNIQUE,
+    description     TEXT,
+    requirements    TEXT,
+    fee             REAL NOT NULL DEFAULT 0,
+    processing_days INTEGER NOT NULL DEFAULT 1,
+    is_active       INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS requests (
+    id               SERIAL PRIMARY KEY,
+    resident_id      INTEGER NOT NULL REFERENCES residents(id),
+    document_type_id INTEGER NOT NULL REFERENCES document_types(id),
+    purpose          TEXT NOT NULL,
+    status           VARCHAR(50) NOT NULL DEFAULT 'Submitted',
+    remarks          TEXT,
+    reviewed_by      INTEGER REFERENCES users(id),
+    created_at       VARCHAR(100) NOT NULL,
+    updated_at       VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS request_attachments (
+    id            SERIAL PRIMARY KEY,
+    request_id    INTEGER NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+    original_name VARCHAR(255) NOT NULL,
+    stored_name   VARCHAR(255) NOT NULL,
+    uploaded_at   VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id         SERIAL PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    request_id INTEGER REFERENCES requests(id) ON DELETE CASCADE,
+    message    TEXT NOT NULL,
+    is_read    INTEGER NOT NULL DEFAULT 0,
+    created_at VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS barangay_settings (
+    id                    INTEGER PRIMARY KEY CHECK (id = 1),
+    barangay_name         VARCHAR(255) NOT NULL,
+    municipality          VARCHAR(255) NOT NULL,
+    province              VARCHAR(255) NOT NULL,
+    address               TEXT,
+    punong_barangay       VARCHAR(255),
+    secretary             VARCHAR(255),
+    control_number_prefix VARCHAR(50) NOT NULL DEFAULT 'BRGY'
+);
+"""
+
+SCHEMA_SQLITE = """
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
@@ -185,17 +261,57 @@ def now():
 def init_db():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     if DATABASE_URL:
-        # Initial check para sa Supabase connection
         try:
             conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+            conn.autocommit = True
+            cursor = conn.cursor()
+            cursor.execute(SCHEMA_PG)
+            
+            # Check if document types exist
+            cursor.execute("SELECT COUNT(*) AS cnt FROM document_types")
+            row = cursor.fetchone()
+            count = list(row.values())[0] if row else 0
+            if count == 0:
+                docs = [
+                    ("Barangay Clearance", "General-purpose barangay clearance.", "Valid ID; Proof of residency", 50, 1),
+                    ("Certificate of Residency", "Certifies that the person lives in the barangay.", "Valid ID", 30, 1),
+                    ("Certificate of Indigency", "Certifies that the person belongs to an indigent family.", "Valid ID", 0, 2),
+                    ("Business Clearance", "Clearance for operating a business in the barangay.", "Valid ID; Business permit or DTI registration", 200, 3),
+                ]
+                for d in docs:
+                    cursor.execute(
+                        "INSERT INTO document_types (name, description, requirements, fee, processing_days) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (name) DO NOTHING",
+                        d
+                    )
+            
+            # Check barangay settings
+            cursor.execute("SELECT COUNT(*) AS cnt FROM barangay_settings")
+            row = cursor.fetchone()
+            count = list(row.values())[0] if row else 0
+            if count == 0:
+                cursor.execute(
+                    "INSERT INTO barangay_settings (id, barangay_name, municipality, province, address, punong_barangay, secretary) VALUES (1, %s, %s, %s, %s, %s, %s) ON CONFLICT (id) DO NOTHING",
+                    ("Barangay Lanao", "Kidapawan City", "Cotabato", "Barangay Hall Address", "Punong Barangay Name", "Barangay Secretary Name")
+                )
+
+            # Check admin user
+            cursor.execute("SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin'")
+            row = cursor.fetchone()
+            count = list(row.values())[0] if row else 0
+            if count == 0:
+                admin_password = os.environ.get("BCDR_ADMIN_PASSWORD", "ChangeMe123!")
+                cursor.execute(
+                    "INSERT INTO users (email, password_hash, role, status, created_at) VALUES (%s, %s, 'admin', 'active', %s) ON CONFLICT (email) DO NOTHING",
+                    ("admin@barangay.local", generate_password_hash(admin_password), now())
+                )
             conn.close()
         except Exception as e:
-            print(f"Database connection warning: {e}")
+            print(f"Database initialization warning: {e}")
     else:
         db = sqlite3.connect(DATABASE)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys = ON")
-        db.executescript(SCHEMA)
+        db.executescript(SCHEMA_SQLITE)
 
         if db.execute("SELECT COUNT(*) FROM document_types").fetchone()[0] == 0:
             db.executemany(
@@ -217,7 +333,7 @@ def init_db():
             db.execute(
                 "INSERT INTO barangay_settings (id, barangay_name, municipality, province, "
                 "address, punong_barangay, secretary) VALUES (1, ?, ?, ?, ?, ?, ?)",
-                ("Your Barangay", "Your Municipality", "Your Province",
+                ("Barangay Lanao", "Kidapawan City", "Cotabato",
                  "Barangay Hall address", "Punong Barangay Name", "Barangay Secretary Name"),
             )
 
