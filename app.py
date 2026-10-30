@@ -792,7 +792,7 @@ def download_document_pdf(request_id):
     text_object.textLine("")
     text_object.textLine(f"This certification/clearance is issued for the purpose of: {req['purpose']}.")
     text_object.textLine("")
-    text_object.textLine("Given this day upon request ofamin the interested party.")
+    text_object.textLine("Given this day upon request of the interested party.")
     
     p.drawText(text_object)
 
@@ -945,6 +945,7 @@ def save_document_type():
 
     return redirect(url_for("document_types"))
 
+
 @app.route("/staff/records/released")
 @role_required(*STAFF_ROLES)
 def released_records():
@@ -955,6 +956,7 @@ def released_records():
     )
     released_list = cursor.fetchall()
     return render_template("staff/released_records.html", requests=released_list)
+
 
 # =============================================================================
 # 7. APP START
