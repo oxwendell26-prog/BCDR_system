@@ -100,7 +100,7 @@ body {
     padding: 0;
 }
 
-/* Navigation Links Hover & Active Effects */
+/* Navigation Links Hover & Active Effects (May Underline na ngayon) */
 .nav-link {
     text-decoration: none;
     color: var(--text-muted);
@@ -110,13 +110,17 @@ body {
     border-radius: 6px;
     transition: all 0.2s ease-in-out;
     white-space: nowrap;
+    position: relative;
 }
 
+/* Underline effect tuwing i-ho-hover */
 .nav-link:hover {
     color: var(--primary);
     background-color: #f1f5f9;
     transform: translateY(-1px);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    text-decoration: underline;
+    text-underline-offset: 4px;
 }
 
 .nav-link.active {
@@ -124,6 +128,8 @@ body {
     background-color: #eff6ff;
     font-weight: 600;
     box-shadow: 0 1px 3px rgba(30, 64, 175, 0.1);
+    text-decoration: underline;
+    text-underline-offset: 4px;
 }
 
 /* User Profile Icon Button & Dropdown Menu */
@@ -153,6 +159,8 @@ body {
     border-color: var(--accent);
     transform: translateY(-1px);
     box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+    text-decoration: underline;
+    text-underline-offset: 3px;
 }
 
 .user-avatar {
@@ -168,7 +176,6 @@ body {
     display: none;
     position: absolute;
     right: 0;
-    top: calc(100 + 8px);
     top: calc(100% + 8px);
     background-color: var(--card-bg);
     border: 1px solid var(--border-color);
