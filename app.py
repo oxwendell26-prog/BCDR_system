@@ -946,6 +946,32 @@ def save_document_type():
     return redirect(url_for("document_types"))
 
 
+@app.route("/staff/document_types/<int:doc_id>/toggle", methods=["POST"])
+@role_required(*STAFF_ROLES)
+def toggle_document_type(doc_id):
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    
+    if DATABASE_URL:
+        cursor.execute("SELECT is_active FROM document_types WHERE id = %s", (doc_id,))
+    else:
+        cursor.execute("SELECT is_active FROM document_types WHERE id = ?", (doc_id,))
+    doc = cursor.fetchone()
+    
+    if doc:
+        new_status = 0 if doc["is_active"] == 1 else 1
+        if DATABASE_URL:
+            cursor.execute("UPDATE document_types SET is_active = %s WHERE id = %s", (new_status, doc_id))
+        else:
+            cursor.execute("UPDATE document_types SET is_active = ? WHERE id = ?", (new_status, doc_id))
+            db.commit()
+        flash("Document type status updated successfully.", "success")
+    else:
+        flash("Document type not found.", "danger")
+        
+    return redirect(url_for("document_types"))
+
+
 @app.route("/staff/residents")
 @role_required(*STAFF_ROLES)
 def residents_list():
