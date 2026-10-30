@@ -821,7 +821,7 @@ def download_document_pdf(request_id):
 
 
 # =============================================================================
-# 6. STAFF ROUTES & DOCUMENT TYPES WITH TEMPLATE UPLOAD
+# 6. STAFF ROUTES & NOTIFICATIONS
 # =============================================================================
 
 @app.route("/staff/dashboard")
@@ -973,6 +973,25 @@ def released_records():
     )
     released_list = cursor.fetchall()
     return render_template("staff/released_records.html", requests=released_list)
+
+
+@app.route("/notifications")
+@login_required
+def notifications_page():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC" if DATABASE_URL else "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
+        (g.user["id"],)
+    )
+    notifications = cursor.fetchall()
+    cursor.execute(
+        "UPDATE notifications SET is_read = 1 WHERE user_id = %s" if DATABASE_URL else "UPDATE notifications SET is_read = 1 WHERE user_id = ?",
+        (g.user["id"],)
+    )
+    if not DATABASE_URL:
+        db.commit()
+    return render_template("resident/notifications.html", notifications=notifications)
 
 
 # =============================================================================
