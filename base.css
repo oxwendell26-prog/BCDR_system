@@ -113,23 +113,19 @@ body {
     position: relative;
 }
 
-/* Underline effect tuwing i-ho-hover */
-.nav-link:hover {
-    color: var(--primary);
+/* Underline effect tuwing i-ho-hover o naka-active */
+.nav-link:hover,
+.nav-link.active {
+    color: var(--primary) !important;
     background-color: #f1f5f9;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-    text-decoration: underline;
-    text-underline-offset: 4px;
+    text-decoration: underline !important;
+    text-underline-offset: 4px !important;
+    text-decoration-thickness: 2px !important;
 }
 
 .nav-link.active {
-    color: var(--primary);
     background-color: #eff6ff;
     font-weight: 600;
-    box-shadow: 0 1px 3px rgba(30, 64, 175, 0.1);
-    text-decoration: underline;
-    text-underline-offset: 4px;
 }
 
 /* User Profile Icon Button & Dropdown Menu */
@@ -157,8 +153,6 @@ body {
 .user-menu-btn:hover {
     background-color: #f1f5f9;
     border-color: var(--accent);
-    transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
     text-decoration: underline;
     text-underline-offset: 3px;
 }
