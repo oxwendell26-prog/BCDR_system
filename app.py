@@ -6,6 +6,9 @@ Ang file na ito ang "utak" ng buong system (backend). Dito natin inilalagay ang:
   2. Database (SQLite / Supabase PostgreSQL) at ang mga table
   3. Helper functions at decorators (login check, role check)
   4. Routes (mga URL / pahina ng system)
+
+Phase 1 (MVP): register, login, resident requests, staff review/approve.
+Kasama na rin ang document_types admin, notifications with request_id, at PDF generation.
 """
 
 import io
@@ -40,10 +43,10 @@ except ImportError:
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATABASE = os.path.join(BASE_DIR, "database.db")
 
+# Kukunin nito ang Supabase connection link kapag naka-deploy na sa Render
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
-TEMPLATE_UPLOAD_FOLDER = os.path.join(UPLOAD_FOLDER, "templates")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "pdf"}
 MAX_FILES_PER_REQUEST = 5
 
@@ -78,10 +81,12 @@ STAFF_ROLES = ("staff", "admin")
 def get_db():
     if "db" not in g:
         if DATABASE_URL:
+            # Kapag nasa Render na (Konekta sa Supabase PostgreSQL)
             conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
-            conn.autocommit = True
+            conn.autocommit = True  # Iniiwasan ang "current transaction is aborted" errors
             g.db = conn
         else:
+            # Kapag nagde-develop ka pa sa local PC mo (Gagamit ng SQLite database.db)
             conn = sqlite3.connect(DATABASE)
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA foreign_keys = ON")
@@ -122,14 +127,13 @@ CREATE TABLE IF NOT EXISTS residents (
 );
 
 CREATE TABLE IF NOT EXISTS document_types (
-    id                SERIAL PRIMARY KEY,
-    name              VARCHAR(255) NOT NULL UNIQUE,
-    description       TEXT,
-    requirements      TEXT,
-    fee               REAL NOT NULL DEFAULT 0,
-    processing_days   INTEGER NOT NULL DEFAULT 1,
-    is_active         INTEGER NOT NULL DEFAULT 1,
-    template_filename VARCHAR(255)
+    id              SERIAL PRIMARY KEY,
+    name            VARCHAR(255) NOT NULL UNIQUE,
+    description     TEXT,
+    requirements    TEXT,
+    fee             REAL NOT NULL DEFAULT 0,
+    processing_days INTEGER NOT NULL DEFAULT 1,
+    is_active       INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS requests (
@@ -199,14 +203,13 @@ CREATE TABLE IF NOT EXISTS residents (
 );
 
 CREATE TABLE IF NOT EXISTS document_types (
-    id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    name              TEXT NOT NULL UNIQUE,
-    description       TEXT,
-    requirements      TEXT,
-    fee               REAL NOT NULL DEFAULT 0,
-    processing_days   INTEGER NOT NULL DEFAULT 1,
-    is_active         INTEGER NOT NULL DEFAULT 1,
-    template_filename TEXT
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL UNIQUE,
+    description     TEXT,
+    requirements    TEXT,
+    fee             REAL NOT NULL DEFAULT 0,
+    processing_days INTEGER NOT NULL DEFAULT 1,
+    is_active       INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS requests (
@@ -257,7 +260,6 @@ def now():
 
 def init_db():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    os.makedirs(TEMPLATE_UPLOAD_FOLDER, exist_ok=True)
     if DATABASE_URL:
         try:
             conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
@@ -265,6 +267,7 @@ def init_db():
             cursor = conn.cursor()
             cursor.execute(SCHEMA_PG)
             
+            # Check if document types exist
             cursor.execute("SELECT COUNT(*) AS cnt FROM document_types")
             row = cursor.fetchone()
             count = list(row.values())[0] if row else 0
@@ -281,6 +284,7 @@ def init_db():
                         d
                     )
             
+            # Check barangay settings
             cursor.execute("SELECT COUNT(*) AS cnt FROM barangay_settings")
             row = cursor.fetchone()
             count = list(row.values())[0] if row else 0
@@ -290,6 +294,7 @@ def init_db():
                     ("Barangay Lanao", "Kidapawan City", "Cotabato", "Barangay Hall Address", "Punong Barangay Name", "Barangay Secretary Name")
                 )
 
+            # Check admin user
             cursor.execute("SELECT COUNT(*) AS cnt FROM users WHERE role = 'admin'")
             row = cursor.fetchone()
             count = list(row.values())[0] if row else 0
@@ -313,10 +318,14 @@ def init_db():
                 "INSERT INTO document_types (name, description, requirements, fee, processing_days) "
                 "VALUES (?, ?, ?, ?, ?)",
                 [
-                    ("Barangay Clearance", "General-purpose barangay clearance.", "Valid ID; Proof of residency", 50, 1),
-                    ("Certificate of Residency", "Certifies that the person lives in the barangay.", "Valid ID", 30, 1),
-                    ("Certificate of Indigency", "Certifies that the person belongs to an indigent family.", "Valid ID", 0, 2),
-                    ("Business Clearance", "Clearance for operating a business in the barangay.", "Valid ID; Business permit or DTI registration", 200, 3),
+                    ("Barangay Clearance", "General-purpose barangay clearance.",
+                     "Valid ID; Proof of residency", 50, 1),
+                    ("Certificate of Residency", "Certifies that the person lives in the barangay.",
+                     "Valid ID", 30, 1),
+                    ("Certificate of Indigency", "Certifies that the person belongs to an indigent family.",
+                     "Valid ID", 0, 2),
+                    ("Business Clearance", "Clearance for operating a business in the barangay.",
+                     "Valid ID; Business permit or DTI registration", 200, 3),
                 ],
             )
 
@@ -324,18 +333,31 @@ def init_db():
             db.execute(
                 "INSERT INTO barangay_settings (id, barangay_name, municipality, province, "
                 "address, punong_barangay, secretary) VALUES (1, ?, ?, ?, ?, ?, ?)",
-                ("Barangay Lanao", "Kidapawan City", "Cotabato", "Barangay Hall address", "Punong Barangay Name", "Barangay Secretary Name"),
+                ("Barangay Lanao", "Kidapawan City", "Cotabato",
+                 "Barangay Hall address", "Punong Barangay Name", "Barangay Secretary Name"),
             )
 
         if db.execute("SELECT COUNT(*) FROM users WHERE role = 'admin'").fetchone()[0] == 0:
             admin_password = os.environ.get("BCDR_ADMIN_PASSWORD", "ChangeMe123!")
             db.execute(
-                "INSERT INTO users (email, password_hash, role, status, created_at) VALUES (?, ?, 'admin', 'active', ?)",
+                "INSERT INTO users (email, password_hash, role, status, created_at) "
+                "VALUES (?, ?, 'admin', 'active', ?)",
                 ("admin@barangay.local", generate_password_hash(admin_password), now()),
             )
 
         db.commit()
         db.close()
+
+
+def log_action(user_id, action, details=""):
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "INSERT INTO audit_logs (user_id, action, details, created_at) VALUES (%s, %s, %s, %s)" if DATABASE_URL else "INSERT INTO audit_logs (user_id, action, details, created_at) VALUES (?, ?, ?, ?)",
+        (user_id, action, details, now()),
+    )
+    if not DATABASE_URL:
+        db.commit()
 
 
 # =============================================================================
@@ -459,12 +481,14 @@ def save_attachments(request_id, files):
         file.save(os.path.join(UPLOAD_FOLDER, stored_name))
         if DATABASE_URL:
             cursor.execute(
-                "INSERT INTO request_attachments (request_id, original_name, stored_name, uploaded_at) VALUES (%s, %s, %s, %s)",
+                "INSERT INTO request_attachments (request_id, original_name, stored_name, uploaded_at) "
+                "VALUES (%s, %s, %s, %s)",
                 (request_id, secure_filename(file.filename) or "file", stored_name, now()),
             )
         else:
             cursor.execute(
-                "INSERT INTO request_attachments (request_id, original_name, stored_name, uploaded_at) VALUES (?, ?, ?, ?)",
+                "INSERT INTO request_attachments (request_id, original_name, stored_name, uploaded_at) "
+                "VALUES (?, ?, ?, ?)",
                 (request_id, secure_filename(file.filename) or "file", stored_name, now()),
             )
     if not DATABASE_URL:
@@ -492,7 +516,7 @@ def notify_staff_and_admins(request_id, message):
 
 
 REQUEST_DETAIL_SQL = """
-    SELECT r.*, dt.name AS document_name, dt.fee, dt.processing_days, dt.requirements, dt.template_filename,
+    SELECT r.*, dt.name AS document_name, dt.fee, dt.processing_days, dt.requirements,
            res.first_name, res.middle_name, res.last_name, res.purok, res.address,
            res.contact_number, res.birthdate, u.email, u.id AS user_id
     FROM requests r
@@ -519,6 +543,35 @@ REGISTER_FIELDS = (
 )
 
 
+def validate_registration(data, password, confirm_password):
+    errors = []
+    required = [f for f in REGISTER_FIELDS if f != "middle_name"]
+    if any(not data[field] for field in required):
+        errors.append("Please fill in all required fields.")
+
+    if data["email"] and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", data["email"]):
+        errors.append("Please enter a valid email address.")
+
+    if data["sex"] and data["sex"] not in SEX_OPTIONS:
+        errors.append("Please choose a valid sex option.")
+    if data["civil_status"] and data["civil_status"] not in CIVIL_STATUS_OPTIONS:
+        errors.append("Please choose a valid civil status.")
+
+    if data["birthdate"]:
+        try:
+            birthdate = datetime.strptime(data["birthdate"], "%Y-%m-%d")
+            if birthdate > datetime.now():
+                errors.append("Birthdate cannot be in the future.")
+        except ValueError:
+            errors.append("Please enter a valid birthdate.")
+
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters long.")
+    if password != confirm_password:
+        errors.append("Passwords do not match.")
+    return errors
+
+
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if g.user:
@@ -530,27 +583,41 @@ def register():
         password = request.form.get("password", "")
         confirm_password = request.form.get("confirm_password", "")
 
+        errors = validate_registration(data, password, confirm_password)
+        if errors:
+            for error in errors:
+                flash(error, "danger")
+            return render_template("public/register.html", form=data)
+
         db = get_db()
         cursor = db.cursor() if DATABASE_URL else db
         try:
             if DATABASE_URL:
                 cursor.execute(
-                    "INSERT INTO users (email, password_hash, role, status, created_at) VALUES (%s, %s, 'resident', 'pending', %s) RETURNING id",
+                    "INSERT INTO users (email, password_hash, role, status, created_at) "
+                    "VALUES (%s, %s, 'resident', 'pending', %s) RETURNING id",
                     (data["email"], generate_password_hash(password), now()),
                 )
                 user_id = cursor.fetchone()["id"]
                 cursor.execute(
-                    "INSERT INTO residents (user_id, first_name, middle_name, last_name, birthdate, sex, civil_status, purok, address, contact_number) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                    (user_id, data["first_name"], data["middle_name"], data["last_name"], data["birthdate"], data["sex"], data["civil_status"], data["purok"], data["address"], data["contact_number"]),
+                    "INSERT INTO residents (user_id, first_name, middle_name, last_name, birthdate, "
+                    "sex, civil_status, purok, address, contact_number) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                    (user_id, data["first_name"], data["middle_name"], data["last_name"],
+                     data["birthdate"], data["sex"], data["civil_status"], data["purok"],
+                     data["address"], data["contact_number"]),
                 )
             else:
                 cursor.execute(
-                    "INSERT INTO users (email, password_hash, role, status, created_at) VALUES (?, ?, 'resident', 'pending', ?)",
+                    "INSERT INTO users (email, password_hash, role, status, created_at) "
+                    "VALUES (?, ?, 'resident', 'pending', ?)",
                     (data["email"], generate_password_hash(password), now()),
                 )
                 cursor.execute(
-                    "INSERT INTO residents (user_id, first_name, middle_name, last_name, birthdate, sex, civil_status, purok, address, contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (cursor.lastrowid, data["first_name"], data["middle_name"], data["last_name"], data["birthdate"], data["sex"], data["civil_status"], data["purok"], data["address"], data["contact_number"]),
+                    "INSERT INTO residents (user_id, first_name, middle_name, last_name, birthdate, "
+                    "sex, civil_status, purok, address, contact_number) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (cursor.lastrowid, data["first_name"], data["middle_name"], data["last_name"],
+                     data["birthdate"], data["sex"], data["civil_status"], data["purok"],
+                     data["address"], data["contact_number"]),
                 )
                 db.commit()
         except Exception:
@@ -605,6 +672,62 @@ def logout():
     session.clear()
     flash("You have been logged out.", "info")
     return redirect(url_for("login"))
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if g.user:
+        return redirect(home_for(g.user))
+
+    if request.method == "POST":
+        email = request.form.get("email", "").strip().lower()
+        contact_number = request.form.get("contact_number", "").strip()
+        new_password = request.form.get("new_password", "")
+        confirm_password = request.form.get("confirm_password", "")
+
+        db = get_db()
+        cursor = db.cursor() if DATABASE_URL else db
+        
+        cursor.execute(
+            "SELECT * FROM users WHERE email = %s AND role = 'resident'" if DATABASE_URL else "SELECT * FROM users WHERE email = ? AND role = 'resident'",
+            (email,)
+        )
+        user = cursor.fetchone()
+        
+        if not user:
+            flash("No resident account found with that email address.", "danger")
+            return render_template("public/forgot_password.html", email=email)
+
+        cursor.execute(
+            "SELECT * FROM residents WHERE user_id = %s AND contact_number = %s" if DATABASE_URL else "SELECT * FROM residents WHERE user_id = ? AND contact_number = ?",
+            (user["id"], contact_number)
+        )
+        resident = cursor.fetchone()
+        
+        if not resident:
+            flash("The contact number does not match our records for this email.", "danger")
+            return render_template("public/forgot_password.html", email=email)
+
+        if len(new_password) < 8:
+            flash("Password must be at least 8 characters long.", "danger")
+            return render_template("public/forgot_password.html", email=email)
+
+        if new_password != confirm_password:
+            flash("Passwords do not match.", "danger")
+            return render_template("public/forgot_password.html", email=email)
+
+        new_hash = generate_password_hash(new_password)
+        cursor.execute(
+            "UPDATE users SET password_hash = %s WHERE id = %s" if DATABASE_URL else "UPDATE users SET password_hash = ? WHERE id = ?",
+            (new_hash, user["id"])
+        )
+        if not DATABASE_URL:
+            db.commit()
+
+        flash("Your password has been successfully reset. You can now log in.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("public/forgot_password.html", email="")
 
 
 # =============================================================================
@@ -664,6 +787,12 @@ def new_request():
             errors.append("Please choose a valid document type.")
         if len(purpose) < 5:
             errors.append("Please state the purpose of your request.")
+        if len(files) > MAX_FILES_PER_REQUEST:
+            errors.append(f"You can upload up to {MAX_FILES_PER_REQUEST} files only.")
+        for file in files:
+            if not allowed_file(file.filename):
+                errors.append(f'"{file.filename}" is not allowed. Allowed types: '
+                              f'{", ".join(sorted(ALLOWED_EXTENSIONS))}.')
 
         if errors:
             for error in errors:
@@ -676,18 +805,33 @@ def new_request():
         timestamp = now()
         if DATABASE_URL:
             cursor.execute(
-                "INSERT INTO requests (resident_id, document_type_id, purpose, status, created_at, updated_at) VALUES (%s, %s, %s, 'Submitted', %s, %s) RETURNING id",
+                "INSERT INTO requests (resident_id, document_type_id, purpose, status, created_at, updated_at) "
+                "VALUES (%s, %s, %s, 'Submitted', %s, %s) RETURNING id",
                 (resident["id"], document_type["id"], purpose, timestamp, timestamp),
             )
             request_id = cursor.fetchone()["id"]
         else:
             cursor.execute(
-                "INSERT INTO requests (resident_id, document_type_id, purpose, status, created_at, updated_at) VALUES (?, ?, ?, 'Submitted', ?, ?)",
+                "INSERT INTO requests (resident_id, document_type_id, purpose, status, created_at, updated_at) "
+                "VALUES (?, ?, ?, 'Submitted', ?, ?)",
                 (resident["id"], document_type["id"], purpose, timestamp, timestamp),
             )
             request_id = cursor.lastrowid
             
         save_attachments(request_id, files)
+
+        cursor.execute(
+            "SELECT first_name, last_name FROM residents WHERE id = %s" if DATABASE_URL else "SELECT first_name, last_name FROM residents WHERE id = ?",
+            (resident["id"],)
+        )
+        resident_info = cursor.fetchone()
+        resident_name = f"{resident_info['first_name']} {resident_info['last_name']}" if resident_info else "A resident"
+        notif_msg = f"New document request (#{request_id}) for {document_type['name']} submitted by {resident_name}."
+        notify_staff_and_admins(request_id, notif_msg)
+
+        if not DATABASE_URL:
+            db.commit()
+
         flash("Your request has been submitted.", "success")
         return redirect(url_for("request_details", request_id=request_id))
 
@@ -732,6 +876,34 @@ def request_details(request_id):
     return render_template("resident/request-details.html", req=req, attachments=attachments)
 
 
+@app.route("/resident/requests/<int:request_id>/cancel", methods=["POST"])
+@role_required("resident")
+def cancel_request(request_id):
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    resident = get_current_resident()
+    
+    cursor.execute(
+        "SELECT * FROM requests WHERE id = %s AND resident_id = %s" if DATABASE_URL else "SELECT * FROM requests WHERE id = ? AND resident_id = ?",
+        (request_id, resident["id"])
+    )
+    req = cursor.fetchone()
+    if req is None:
+        abort(404)
+
+    if req["status"] != "Submitted":
+        flash("Only requests that are still 'Submitted' can be cancelled.", "warning")
+    else:
+        cursor.execute(
+            "UPDATE requests SET status = 'Cancelled', updated_at = %s WHERE id = %s" if DATABASE_URL else "UPDATE requests SET status = 'Cancelled', updated_at = ? WHERE id = ?",
+            (now(), request_id)
+        )
+        if not DATABASE_URL:
+            db.commit()
+        flash("Your request has been cancelled.", "info")
+    return redirect(url_for("request_details", request_id=request_id))
+
+
 @app.route("/requests/<int:request_id>/download-pdf")
 @role_required("resident", "staff", "admin")
 def download_document_pdf(request_id):
@@ -753,7 +925,9 @@ def download_document_pdf(request_id):
         req = cursor.fetchone()
 
     if not req or req["status"] != "Released":
-        flash("Document is not available for download yet.", "danger")
+        flash("Document is not available for download yet. Please settle your payment or wait for the staff to release the document.", "danger")
+        if g.user["role"] in STAFF_ROLES:
+            return redirect(url_for("review_request", request_id=request_id))
         return redirect(url_for("my_requests"))
 
     cursor.execute("SELECT * FROM barangay_settings WHERE id = 1")
@@ -792,7 +966,8 @@ def download_document_pdf(request_id):
     text_object.textLine("")
     text_object.textLine(f"This certification/clearance is issued for the purpose of: {req['purpose']}.")
     text_object.textLine("")
-    text_object.textLine("Given this day upon request of the interested party.")
+    text_object.textLine("Given this day upon request of the interested party for whatever legal purpose")
+    text_object.textLine("it may serve.")
     
     p.drawText(text_object)
 
@@ -821,7 +996,120 @@ def download_document_pdf(request_id):
 
 
 # =============================================================================
-# 6. STAFF ROUTES & SETTINGS
+# 6. GENERAL NOTIFICATIONS & PROFILE ROUTES
+# =============================================================================
+
+@app.route("/notifications")
+@login_required
+def notifications_page():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    
+    cursor.execute(
+        "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC" if DATABASE_URL else "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
+        (g.user["id"],)
+    )
+    notifications = cursor.fetchall()
+
+    cursor.execute(
+        "UPDATE notifications SET is_read = 1 WHERE user_id = %s" if DATABASE_URL else "UPDATE notifications SET is_read = 1 WHERE user_id = ?",
+        (g.user["id"],)
+    )
+    if not DATABASE_URL:
+        db.commit()
+
+    return render_template("resident/notifications.html", notifications=notifications)
+
+
+@app.route("/notifications/clear", methods=["POST"])
+@login_required
+def clear_notifications():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "DELETE FROM notifications WHERE user_id = %s" if DATABASE_URL else "DELETE FROM notifications WHERE user_id = ?",
+        (g.user["id"],)
+    )
+    if not DATABASE_URL:
+        db.commit()
+    flash("All notifications have been cleared.", "info")
+    return redirect(url_for("notifications_page"))
+
+
+@app.route("/notifications/<int:notif_id>/delete", methods=["POST"])
+@login_required
+def delete_notification(notif_id):
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "DELETE FROM notifications WHERE id = %s AND user_id = %s" if DATABASE_URL else "DELETE FROM notifications WHERE id = ? AND user_id = ?",
+        (notif_id, g.user["id"])
+    )
+    if not DATABASE_URL:
+        db.commit()
+    flash("Notification deleted.", "info")
+    return redirect(url_for("notifications_page"))
+
+
+@app.route("/resident/profile", methods=["GET", "POST"])
+@role_required("resident")
+def profile():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    resident = get_current_resident()
+
+    if request.method == "POST":
+        purok = request.form.get("purok", "").strip()
+        address = request.form.get("address", "").strip()
+        contact_number = request.form.get("contact_number", "").strip()
+        if not (purok and address and contact_number):
+            flash("Purok, address, and contact number are required.", "danger")
+        else:
+            cursor.execute(
+                "UPDATE residents SET purok = %s, address = %s, contact_number = %s WHERE id = %s" if DATABASE_URL else "UPDATE residents SET purok = ?, address = ?, contact_number = ? WHERE id = ?",
+                (purok, address, contact_number, resident["id"]),
+            )
+            if not DATABASE_URL:
+                db.commit()
+            flash("Your profile has been updated.", "success")
+            return redirect(url_for("profile"))
+        resident = get_current_resident()
+
+    return render_template("resident/profile.html", resident=resident)
+
+@app.route("/resident/requests/<int:request_id>/delete", methods=["POST"])
+@role_required("resident")
+def delete_resident_request(request_id):
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    resident = get_current_resident()
+    cursor.execute(
+        "DELETE FROM requests WHERE id = %s AND resident_id = %s" if DATABASE_URL else "DELETE FROM requests WHERE id = ? AND resident_id = ?",
+        (request_id, resident["id"])
+    )
+    if not DATABASE_URL:
+        db.commit()
+    flash("Request deleted successfully.", "success")
+    return redirect(url_for('my_requests'))
+
+@app.route("/resident/requests/delete-all", methods=["POST"])
+@role_required("resident")
+def delete_all_resident_requests():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    resident = get_current_resident()
+    cursor.execute(
+        "DELETE FROM requests WHERE resident_id = %s" if DATABASE_URL else "DELETE FROM requests WHERE resident_id = ?",
+        (resident["id"],)
+    )
+    if not DATABASE_URL:
+        db.commit()
+    flash("All your requests have been cleared.", "success")
+    return redirect(url_for('my_requests'))
+
+
+# =============================================================================
+# 7. STAFF ROUTES
 # =============================================================================
 
 @app.route("/staff/dashboard")
@@ -832,7 +1120,14 @@ def staff_dashboard():
     cursor.execute("SELECT status, COUNT(*) AS total FROM requests GROUP BY status")
     rows = cursor.fetchall()
     status_counts = {row["status"]: row["total"] for row in rows}
-    return render_template("staff/dashboard.html", status_counts=status_counts)
+    
+    cursor.execute("SELECT COUNT(*) FROM users WHERE role = 'resident' AND status = 'pending'")
+    pending_residents_row = cursor.fetchone()
+    pending_residents = list(pending_residents_row.values())[0] if DATABASE_URL else pending_residents_row[0]
+    
+    return render_template(
+        "staff/dashboard.html", status_counts=status_counts, pending_residents=pending_residents,
+    )
 
 
 @app.route("/staff/request-queue")
@@ -840,9 +1135,37 @@ def staff_dashboard():
 def request_queue():
     db = get_db()
     cursor = db.cursor() if DATABASE_URL else db
-    cursor.execute(REQUEST_DETAIL_SQL + " ORDER BY r.created_at ASC")
+    status = request.args.get("status", "").strip()
+    search = request.args.get("search", "").strip()
+
+    query = REQUEST_DETAIL_SQL + " WHERE 1=1"
+    params = []
+
+    if status in REQUEST_STATUSES:
+        query += " AND r.status = %s" if DATABASE_URL else " AND r.status = ?"
+        params.append(status)
+    else:
+        ph = "%s" if DATABASE_URL else "?"
+        placeholders = ", ".join(ph for _ in OPEN_STATUSES)
+        query += f" AND r.status IN ({placeholders})"
+        params.extend(OPEN_STATUSES)
+
+    if search:
+        query += " AND (res.first_name ILIKE %s OR res.last_name ILIKE %s OR u.email ILIKE %s)" if DATABASE_URL else " AND (res.first_name LIKE ? OR res.last_name LIKE ? OR u.email LIKE ?)"
+        search_param = f"%{search}%"
+        params.extend([search_param, search_param, search_param])
+
+    query += " ORDER BY r.created_at ASC, r.id ASC"
+
+    cursor.execute(query, params)
     requests_list = cursor.fetchall()
-    return render_template("staff/request-queue.html", requests=requests_list)
+    
+    return render_template(
+        "staff/request-queue.html",
+        requests=requests_list,
+        selected_status=status,
+        search_query=search,
+    )
 
 
 @app.route("/staff/requests/<int:request_id>", methods=["GET", "POST"])
@@ -863,16 +1186,105 @@ def review_request(request_id):
         new_status = request.form.get("status", "").strip()
         remarks = request.form.get("remarks", "").strip()
 
-        cursor.execute(
-            "UPDATE requests SET status = %s, remarks = %s, reviewed_by = %s, updated_at = %s WHERE id = %s" if DATABASE_URL else "UPDATE requests SET status = ?, remarks = ?, reviewed_by = ?, updated_at = ? WHERE id = ?",
-            (new_status, remarks, g.user["id"], now(), request_id),
-        )
-        if not DATABASE_URL:
-            db.commit()
-        flash(f"Request status updated to '{new_status}'.", "success")
-        return redirect(url_for("request_queue"))
+        if req["status"] in FINAL_STATUSES and req["status"] != "Approved":
+            flash(f"This request is already {req['status']} and can no longer be changed.", "warning")
+        elif new_status not in STAFF_SETTABLE_STATUSES:
+            flash("Please choose a valid status.", "danger")
+        elif new_status in REMARKS_REQUIRED_STATUSES and not remarks:
+            flash(f"Remarks are required when setting a request to '{new_status}'.", "danger")
+        else:
+            cursor.execute(
+                "UPDATE requests SET status = %s, remarks = %s, reviewed_by = %s, updated_at = %s WHERE id = %s" if DATABASE_URL else "UPDATE requests SET status = ?, remarks = ?, reviewed_by = ?, updated_at = ? WHERE id = ?",
+                (new_status, remarks, g.user["id"], now(), request_id),
+            )
 
-    return render_template("staff/review-request.html", req=req, attachments=[])
+            if new_status == "Approved":
+                notif_msg = f"Your request for '{req['document_name']}' has been APPROVED! Please settle your payment so staff can release your document."
+                if DATABASE_URL:
+                    cursor.execute(
+                        "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (%s, %s, %s, 0, %s)",
+                        (req["user_id"], request_id, notif_msg, now())
+                    )
+                else:
+                    cursor.execute(
+                        "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (?, ?, ?, 0, ?)",
+                        (req["user_id"], request_id, notif_msg, now())
+                    )
+            elif new_status == "Released":
+                notif_msg = f"Your document '{req['document_name']}' has been RELEASED! You can now view and download your official document."
+                if DATABASE_URL:
+                    cursor.execute(
+                        "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (%s, %s, %s, 0, %s)",
+                        (req["user_id"], request_id, notif_msg, now())
+                    )
+                else:
+                    cursor.execute(
+                        "INSERT INTO notifications (user_id, request_id, message, is_read, created_at) VALUES (?, ?, ?, 0, ?)",
+                        (req["user_id"], request_id, notif_msg, now())
+                    )
+
+            if not DATABASE_URL:
+                db.commit()
+            flash(f"Request #{request_id} is now '{new_status}'.", "success")
+            return redirect(url_for("request_queue"))
+
+        cursor.execute(
+            (REQUEST_DETAIL_SQL + " WHERE r.id = %s") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.id = ?"),
+            (request_id,)
+        )
+        req = cursor.fetchone()
+
+    cursor.execute(
+        "SELECT * FROM request_attachments WHERE request_id = %s" if DATABASE_URL else "SELECT * FROM request_attachments WHERE request_id = ?",
+        (request_id,)
+    )
+    attachments = cursor.fetchall()
+    return render_template("staff/review-request.html", req=req, attachments=attachments)
+
+
+@app.route("/staff/residents")
+@role_required(*STAFF_ROLES)
+def residents_list():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        """
+        SELECT res.*, u.id AS user_id, u.email, u.status, u.created_at
+        FROM residents res
+        JOIN users u ON u.id = res.user_id
+        ORDER BY CASE u.status WHEN 'pending' THEN 0 ELSE 1 END, res.last_name, res.first_name
+        """
+    )
+    residents = cursor.fetchall()
+    return render_template("staff/residents.html", residents=residents)
+
+
+@app.route("/staff/residents/<int:user_id>/decision", methods=["POST"])
+@role_required(*STAFF_ROLES)
+def resident_decision(user_id):
+    decision = request.form.get("decision", "")
+    if decision not in ("approve", "reject"):
+        abort(400)
+
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "SELECT * FROM users WHERE id = %s AND role = 'resident'" if DATABASE_URL else "SELECT * FROM users WHERE id = ? AND role = 'resident'",
+        (user_id,)
+    )
+    user = cursor.fetchone()
+    if user is None:
+        abort(404)
+
+    new_status = "active" if decision == "approve" else "rejected"
+    cursor.execute(
+        "UPDATE users SET status = %s WHERE id = %s" if DATABASE_URL else "UPDATE users SET status = ? WHERE id = ?",
+        (new_status, user_id)
+    )
+    if not DATABASE_URL:
+        db.commit()
+    flash(f"Resident account {new_status}: {user['email']}", "success")
+    return redirect(url_for("residents_list"))
 
 
 @app.route("/staff/document_types")
@@ -882,7 +1294,8 @@ def document_types():
     cursor = db.cursor() if DATABASE_URL else db
     cursor.execute("SELECT * FROM document_types ORDER BY name")
     rows = cursor.fetchall()
-    return render_template("staff/document_types.html", document_types=rows)
+    document_types_list = [dict(row) for row in rows]
+    return render_template("staff/document_types.html", document_types=document_types_list)
 
 
 @app.route("/staff/document_types/save", methods=["POST"])
@@ -909,143 +1322,273 @@ def save_document_type():
         flash("Document name is required.", "danger")
         return redirect(url_for("document_types"))
 
-    template_filename = None
-    file = request.files.get("template_file")
-    if file and file.filename:
-        if allowed_file(file.filename):
-            ext = file.filename.rsplit(".", 1)[1].lower()
-            template_filename = f"template_{uuid.uuid4().hex}.{ext}"
-            file.save(os.path.join(TEMPLATE_UPLOAD_FOLDER, template_filename))
-
     try:
         if doc_id:
-            if template_filename:
-                cursor.execute(
-                    "UPDATE document_types SET name = %s, description = %s, requirements = %s, fee = %s, processing_days = %s, template_filename = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET name = ?, description = ?, requirements = ?, fee = ?, processing_days = ?, template_filename = ? WHERE id = ?",
-                    (name, description, requirements, fee, processing_days, template_filename, doc_id),
-                )
-            else:
-                cursor.execute(
-                    "UPDATE document_types SET name = %s, description = %s, requirements = %s, fee = %s, processing_days = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET name = ?, description = ?, requirements = ?, fee = ?, processing_days = ?, id = ?",
-                    (name, description, requirements, fee, processing_days, doc_id),
-                )
+            cursor.execute(
+                "UPDATE document_types SET name = %s, description = %s, requirements = %s, fee = %s, processing_days = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET name = ?, description = ?, requirements = ?, fee = ?, processing_days = ? WHERE id = ?",
+                (name, description, requirements, fee, processing_days, doc_id),
+            )
             flash("Document type updated successfully.", "success")
         else:
             cursor.execute(
-                "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active, template_filename) VALUES (%s, %s, %s, %s, %s, 1, %s)" if DATABASE_URL else "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active, template_filename) VALUES (?, ?, ?, ?, ?, 1, ?)",
-                (name, description, requirements, fee, processing_days, template_filename),
+                "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active) VALUES (%s, %s, %s, %s, %s, 1)" if DATABASE_URL else "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active) VALUES (?, ?, ?, ?, ?, 1)",
+                (name, description, requirements, fee, processing_days),
             )
             flash("New document type added successfully.", "success")
         if not DATABASE_URL:
             db.commit()
-    except Exception as e:
+    except Exception:
         if not DATABASE_URL:
             db.rollback()
-        flash(f"Error saving document type: {e}", "danger")
+        flash("A document type with that name already exists.", "danger")
 
     return redirect(url_for("document_types"))
 
 
-@app.route("/staff/document_types/<int:doc_id>/toggle", methods=["POST"])
+@app.route("/staff/document_types/toggle/<int:doc_id>", methods=["POST"])
 @role_required(*STAFF_ROLES)
 def toggle_document_type(doc_id):
     db = get_db()
     cursor = db.cursor() if DATABASE_URL else db
-    
-    if DATABASE_URL:
-        cursor.execute("SELECT is_active FROM document_types WHERE id = %s", (doc_id,))
-    else:
-        cursor.execute("SELECT is_active FROM document_types WHERE id = ?", (doc_id,))
+    cursor.execute(
+        "SELECT * FROM document_types WHERE id = %s" if DATABASE_URL else "SELECT * FROM document_types WHERE id = ?",
+        (doc_id,)
+    )
     doc = cursor.fetchone()
-    
-    if doc:
-        new_status = 0 if doc["is_active"] == 1 else 1
-        if DATABASE_URL:
-            cursor.execute("UPDATE document_types SET is_active = %s WHERE id = %s", (new_status, doc_id))
-        else:
-            cursor.execute("UPDATE document_types SET is_active = ? WHERE id = ?", (new_status, doc_id))
-            db.commit()
-        flash("Document type status updated successfully.", "success")
-    else:
-        flash("Document type not found.", "danger")
-        
-    return redirect(url_for("document_types"))
+    if doc is None:
+        abort(404)
 
-
-@app.route("/staff/residents")
-@role_required(*STAFF_ROLES)
-def residents_list():
-    db = get_db()
-    cursor = db.cursor() if DATABASE_URL else db
+    new_status = 0 if doc["is_active"] == 1 else 1
     cursor.execute(
-        """
-        SELECT res.*, u.id AS user_id, u.email, u.status, u.created_at
-        FROM residents res
-        JOIN users u ON u.id = res.user_id
-        ORDER BY CASE u.status WHEN 'pending' THEN 0 ELSE 1 END, res.last_name, res.first_name
-        """
-    )
-    residents = cursor.fetchall()
-    return render_template("staff/residents.html", residents=residents)
-
-
-@app.route("/staff/records/released")
-@role_required(*STAFF_ROLES)
-def released_records():
-    db = get_db()
-    cursor = db.cursor() if DATABASE_URL else db
-    cursor.execute(
-        (REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' ORDER BY r.updated_at DESC, r.id DESC")
-    )
-    released_list = cursor.fetchall()
-    return render_template("staff/released_records.html", requests=released_list)
-
-
-@app.route("/notifications")
-@login_required
-def notifications_page():
-    db = get_db()
-    cursor = db.cursor() if DATABASE_URL else db
-    cursor.execute(
-        "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC" if DATABASE_URL else "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
-        (g.user["id"],)
-    )
-    notifications = cursor.fetchall()
-    cursor.execute(
-        "UPDATE notifications SET is_read = 1 WHERE user_id = %s" if DATABASE_URL else "UPDATE notifications SET is_read = 1 WHERE user_id = ?",
-        (g.user["id"],)
+        "UPDATE document_types SET is_active = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET is_active = ? WHERE id = ?",
+        (new_status, doc_id)
     )
     if not DATABASE_URL:
         db.commit()
-    return render_template("resident/notifications.html", notifications=notifications)
+
+    status_word = "activated" if new_status == 1 else "deactivated"
+    flash(f"Document type has been {status_word}.", "info")
+    return redirect(url_for("document_types"))
 
 
-@app.route("/notifications/clear", methods=["POST"])
-@login_required
-def clear_notifications():
-    db = get_db()
-    cursor = db.cursor() if DATABASE_URL else db
-    if DATABASE_URL:
-        cursor.execute("DELETE FROM notifications WHERE user_id = %s", (g.user["id"],))
-    else:
-        cursor.execute("DELETE FROM notifications WHERE user_id = ?", (g.user["id"],))
-        db.commit()
-    flash("Notifications cleared.", "success")
-    return redirect(url_for("notifications_page"))
-
-
-@app.route("/staff/settings")
+@app.route("/staff/settings", methods=["GET", "POST"])
 @role_required(*STAFF_ROLES)
 def barangay_settings_page():
     db = get_db()
     cursor = db.cursor() if DATABASE_URL else db
+
+    if request.method == "POST":
+        barangay_name = request.form.get("barangay_name", "").strip()
+        municipality = request.form.get("municipality", "").strip()
+        province = request.form.get("province", "").strip()
+        address = request.form.get("address", "").strip()
+        punong_barangay = request.form.get("punong_barangay", "").strip()
+        secretary = request.form.get("secretary", "").strip()
+        control_prefix = request.form.get("control_number_prefix", "").strip() or "BRGY"
+
+        if not (barangay_name and municipality and province):
+            flash("Barangay Name, Municipality, and Province are required.", "danger")
+        else:
+            cursor.execute(
+                """
+                UPDATE barangay_settings
+                SET barangay_name = %s, municipality = %s, province = %s, address = %s,
+                    punong_barangay = %s, secretary = %s, control_number_prefix = %s
+                WHERE id = 1
+                """ if DATABASE_URL else """
+                UPDATE barangay_settings
+                SET barangay_name = ?, municipality = ?, province = ?, address = ?,
+                    punong_barangay = ?, secretary = ?, control_number_prefix = ?
+                WHERE id = 1
+                """,
+                (barangay_name, municipality, province, address, punong_barangay, secretary, control_prefix),
+            )
+            if not DATABASE_URL:
+                db.commit()
+            flash("Barangay settings updated successfully!", "success")
+            return redirect(url_for("barangay_settings_page"))
+
     cursor.execute("SELECT * FROM barangay_settings WHERE id = 1")
     settings = cursor.fetchone()
     return render_template("staff/settings.html", settings=settings)
 
+@app.route("/staff/records/released")
+@role_required(*STAFF_ROLES)
+def released_records():
+    search_query = request.args.get("q", "").strip()
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    
+    if search_query:
+        sql = (REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' AND (u.first_name ILIKE %s OR u.last_name ILIKE %s OR dt.name ILIKE %s) ORDER BY r.updated_at DESC, r.id DESC") if DATABASE_URL else (REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' AND (u.first_name LIKE ? OR u.last_name LIKE ? OR dt.name LIKE ?) ORDER BY r.updated_at DESC, r.id DESC")
+        like_term = f"%{search_query}%"
+        cursor.execute(sql, (like_term, like_term, like_term))
+        released_list = cursor.fetchall()
+    else:
+        cursor.execute(
+            (REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' ORDER BY r.updated_at DESC, r.id DESC")
+        )
+        released_list = cursor.fetchall()
+        
+    return render_template("staff/released_records.html", requests=released_list, search_query=search_query)
+
+@app.route("/staff/records/delete/<int:request_id>", methods=["POST"])
+@role_required(*STAFF_ROLES)
+def delete_released_record(request_id):
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        "DELETE FROM requests WHERE id = %s AND status = 'Released'" if DATABASE_URL else "DELETE FROM requests WHERE id = ? AND status = 'Released'",
+        (request_id,)
+    )
+    if not DATABASE_URL:
+        db.commit()
+    flash("Released record deleted successfully.", "success")
+    return redirect(url_for('released_records'))
+
+@app.route("/staff/records/delete-all", methods=["POST"])
+@role_required(*STAFF_ROLES)
+def delete_all_released_records():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute("DELETE FROM requests WHERE status = 'Released'")
+    if not DATABASE_URL:
+        db.commit()
+    flash("All released records have been cleared.", "success")
+    return redirect(url_for('released_records'))
+
+@app.route("/staff/residents/<int:resident_id>/edit", methods=["GET", "POST"])
+@role_required(*STAFF_ROLES)
+def staff_edit_resident(resident_id):
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        """
+        SELECT res.*, u.email, u.status, u.id AS user_id
+        FROM residents res
+        JOIN users u ON u.id = res.user_id
+        WHERE res.id = %s
+        """ if DATABASE_URL else """
+        SELECT res.*, u.email, u.status, u.id AS user_id
+        FROM residents res
+        JOIN users u ON u.id = res.user_id
+        WHERE res.id = ?
+        """,
+        (resident_id,),
+    )
+    resident = cursor.fetchone()
+    if resident is None:
+        abort(404)
+
+    if request.method == "POST":
+        first_name = request.form.get("first_name", "").strip()
+        middle_name = request.form.get("middle_name", "").strip()
+        last_name = request.form.get("last_name", "").strip()
+        birthdate = request.form.get("birthdate", "").strip()
+        sex = request.form.get("sex", "").strip()
+        civil_status = request.form.get("civil_status", "").strip()
+        purok = request.form.get("purok", "").strip()
+        address = request.form.get("address", "").strip()
+        contact_number = request.form.get("contact_number", "").strip()
+
+        if not (first_name and last_name and birthdate and sex and civil_status and purok and address and contact_number):
+            flash("Please fill in all required fields.", "danger")
+        else:
+            cursor.execute(
+                """
+                UPDATE residents 
+                SET first_name = %s, middle_name = %s, last_name = %s, birthdate = %s, 
+                    sex = %s, civil_status = %s, purok = %s, address = %s, contact_number = %s
+                WHERE id = %s
+                """ if DATABASE_URL else """
+                UPDATE residents 
+                SET first_name = ?, middle_name = ?, last_name = ?, birthdate = ?, 
+                    sex = ?, civil_status = ?, purok = ?, address = ?, contact_number = ?
+                WHERE id = ?
+                """,
+                (first_name, middle_name, last_name, birthdate, sex, civil_status, purok, address, contact_number, resident_id)
+            )
+            if not DATABASE_URL:
+                db.commit()
+            flash(f"Resident profile for {first_name} {last_name} updated successfully.", "success")
+            return redirect(url_for("residents_list"))
+
+    return render_template("staff/edit_resident.html", resident=resident)
+
 
 # =============================================================================
-# 7. APP START
+# 8. PROTECTED FILE DOWNLOAD
+# =============================================================================
+
+@app.route("/attachments/<int:attachment_id>")
+@login_required
+def view_attachment(attachment_id):
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        """
+        SELECT a.*, res.user_id AS owner_user_id
+        FROM request_attachments a
+        JOIN requests r ON r.id = a.request_id
+        JOIN residents res ON res.id = r.resident_id
+        WHERE a.id = %s
+        """ if DATABASE_URL else """
+        SELECT a.*, res.user_id AS owner_user_id
+        FROM request_attachments a
+        JOIN requests r ON r.id = a.request_id
+        JOIN residents res ON res.id = r.resident_id
+        WHERE a.id = ?
+        """,
+        (attachment_id,),
+    )
+    attachment = cursor.fetchone()
+    if attachment is None:
+        abort(404)
+
+    if g.user["role"] not in STAFF_ROLES and attachment["owner_user_id"] != g.user["id"]:
+        abort(404)
+
+    return send_from_directory(
+        UPLOAD_FOLDER, attachment["stored_name"],
+        download_name=attachment["original_name"],
+    )
+
+
+# =============================================================================
+# 9. ERROR HANDLERS
+# =============================================================================
+
+def render_error(code, title, message):
+    return render_template("error.html", code=code, title=title, message=message), code
+
+
+@app.errorhandler(400)
+def bad_request(error):
+    return render_error(400, "Bad Request", "The request could not be understood.")
+
+
+@app.errorhandler(403)
+def forbidden(error):
+    return render_error(403, "Access Denied", "You do not have permission to view this page.")
+
+
+@app.errorhandler(404)
+def not_found(error):
+    return render_error(404, "Page Not Found", "The page you are looking for does not exist.")
+
+
+@app.errorhandler(413)
+def too_large(error):
+    return render_error(413, "File Too Large", "The upload is too large. The maximum total size is 5 MB.")
+
+
+@app.errorhandler(500)
+def server_error(error):
+    return render_error(500, "Server Error", "Something went wrong on our side. Please try again later.")
+
+
+# =============================================================================
+# 10. APP START
 # =============================================================================
 
 init_db()
