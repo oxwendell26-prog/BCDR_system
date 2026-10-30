@@ -28,8 +28,9 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
-# Imports para sa PDF Generation
+# Imports para sa PDF Generation & Template Filling
 try:
+    import pypdf
     from reportlab.lib.pagesizes import letter
     from reportlab.pdfgen import canvas
 except ImportError:
@@ -47,6 +48,7 @@ DATABASE = os.path.join(BASE_DIR, "database.db")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+TEMPLATE_UPLOAD_FOLDER = os.path.join(UPLOAD_FOLDER, "templates")
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "pdf"}
 MAX_FILES_PER_REQUEST = 5
 
@@ -127,13 +129,14 @@ CREATE TABLE IF NOT EXISTS residents (
 );
 
 CREATE TABLE IF NOT EXISTS document_types (
-    id              SERIAL PRIMARY KEY,
-    name            VARCHAR(255) NOT NULL UNIQUE,
-    description     TEXT,
-    requirements    TEXT,
-    fee             REAL NOT NULL DEFAULT 0,
-    processing_days INTEGER NOT NULL DEFAULT 1,
-    is_active       INTEGER NOT NULL DEFAULT 1
+    id                SERIAL PRIMARY KEY,
+    name              VARCHAR(255) NOT NULL UNIQUE,
+    description       TEXT,
+    requirements      TEXT,
+    fee               REAL NOT NULL DEFAULT 0,
+    processing_days   INTEGER NOT NULL DEFAULT 1,
+    is_active         INTEGER NOT NULL DEFAULT 1,
+    template_filename VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS requests (
@@ -203,13 +206,14 @@ CREATE TABLE IF NOT EXISTS residents (
 );
 
 CREATE TABLE IF NOT EXISTS document_types (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    name            TEXT NOT NULL UNIQUE,
-    description     TEXT,
-    requirements    TEXT,
-    fee             REAL NOT NULL DEFAULT 0,
-    processing_days INTEGER NOT NULL DEFAULT 1,
-    is_active       INTEGER NOT NULL DEFAULT 1
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    name              TEXT NOT NULL UNIQUE,
+    description       TEXT,
+    requirements      TEXT,
+    fee               REAL NOT NULL DEFAULT 0,
+    processing_days   INTEGER NOT NULL DEFAULT 1,
+    is_active         INTEGER NOT NULL DEFAULT 1,
+    template_filename TEXT
 );
 
 CREATE TABLE IF NOT EXISTS requests (
@@ -260,6 +264,7 @@ def now():
 
 def init_db():
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    os.makedirs(TEMPLATE_UPLOAD_FOLDER, exist_ok=True)
     if DATABASE_URL:
         try:
             conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
@@ -516,7 +521,7 @@ def notify_staff_and_admins(request_id, message):
 
 
 REQUEST_DETAIL_SQL = """
-    SELECT r.*, dt.name AS document_name, dt.fee, dt.processing_days, dt.requirements,
+    SELECT r.*, dt.name AS document_name, dt.fee, dt.processing_days, dt.requirements, dt.template_filename,
            res.first_name, res.middle_name, res.last_name, res.purok, res.address,
            res.contact_number, res.birthdate, u.email, u.id AS user_id
     FROM requests r
@@ -933,6 +938,50 @@ def download_document_pdf(request_id):
     cursor.execute("SELECT * FROM barangay_settings WHERE id = 1")
     barangay = cursor.fetchone()
 
+    full_name = f"{req['first_name']} {req['middle_name'] or ''} {req['last_name']}".strip()
+    address = f"{req['purok']}, {req['address']}"
+
+    # Titingnan kung may in-upload na PDF Template ang barangay para sa document type na ito
+    template_filename = req.get("template_filename")
+    template_path = os.path.join(TEMPLATE_UPLOAD_FOLDER, template_filename) if template_filename else None
+
+    if template_path and os.path.exists(template_path):
+        try:
+            reader = pypdf.PdfReader(template_path)
+            writer = pypdf.PdfWriter(clone_from=reader)
+
+            field_values = {
+                "FULL_NAME": full_name,
+                "FULLNAME": full_name,
+                "NAME": full_name,
+                "ADDRESS": address,
+                "PURPOSE": req["purpose"],
+                "DATE_ISSUED": str(req["updated_at"]),
+                "CONTROL_NO": f"{barangay['control_number_prefix']}-{req['id']:05d}",
+                "BARANGAY": barangay["barangay_name"],
+                "MUNICIPALITY": barangay["municipality"],
+                "PROVINCE": barangay["province"],
+                "PUNONG_BARANGAY": barangay["punong_barangay"]
+            }
+
+            for page in writer.pages:
+                writer.update_page_form_field_values(page, field_values)
+
+            buffer = io.BytesIO()
+            writer.write(buffer)
+            buffer.seek(0)
+
+            filename = f"{req['document_name'].replace(' ', '_')}_{req['id']}.pdf"
+            return send_file(
+                buffer,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/pdf'
+            )
+        except Exception as e:
+            print(f"Template filling error: {e}")
+
+    # Fallback default PDF layout kapag walang template file
     buffer = io.BytesIO()
     p = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
@@ -950,9 +999,6 @@ def download_document_pdf(request_id):
 
     p.setFont("Helvetica-Bold", 18)
     p.drawCentredString(width / 2, height - 170, str(req['document_name']).upper())
-
-    full_name = f"{req['first_name']} {req['middle_name'] or ''} {req['last_name']}".strip()
-    address = f"{req['purok']}, {req['address']}"
 
     text_object = p.beginText(60, height - 230)
     text_object.setFont("Helvetica-Bold", 11)
@@ -1322,25 +1368,39 @@ def save_document_type():
         flash("Document name is required.", "danger")
         return redirect(url_for("document_types"))
 
+    template_filename = None
+    file = request.files.get("template_file")
+    if file and file.filename:
+        if allowed_file(file.filename):
+            ext = file.filename.rsplit(".", 1)[1].lower()
+            template_filename = f"template_{uuid.uuid4().hex}.{ext}"
+            file.save(os.path.join(TEMPLATE_UPLOAD_FOLDER, template_filename))
+
     try:
         if doc_id:
-            cursor.execute(
-                "UPDATE document_types SET name = %s, description = %s, requirements = %s, fee = %s, processing_days = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET name = ?, description = ?, requirements = ?, fee = ?, processing_days = ? WHERE id = ?",
-                (name, description, requirements, fee, processing_days, doc_id),
-            )
+            if template_filename:
+                cursor.execute(
+                    "UPDATE document_types SET name = %s, description = %s, requirements = %s, fee = %s, processing_days = %s, template_filename = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET name = ?, description = ?, requirements = ?, fee = ?, processing_days = ?, template_filename = ? WHERE id = ?",
+                    (name, description, requirements, fee, processing_days, template_filename, doc_id),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE document_types SET name = %s, description = %s, requirements = %s, fee = %s, processing_days = %s WHERE id = %s" if DATABASE_URL else "UPDATE document_types SET name = ?, description = ?, requirements = ?, fee = ?, processing_days = ?, id = ?",
+                    (name, description, requirements, fee, processing_days, doc_id),
+                )
             flash("Document type updated successfully.", "success")
         else:
             cursor.execute(
-                "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active) VALUES (%s, %s, %s, %s, %s, 1)" if DATABASE_URL else "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active) VALUES (?, ?, ?, ?, ?, 1)",
-                (name, description, requirements, fee, processing_days),
+                "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active, template_filename) VALUES (%s, %s, %s, %s, %s, 1, %s)" if DATABASE_URL else "INSERT INTO document_types (name, description, requirements, fee, processing_days, is_active, template_filename) VALUES (?, ?, ?, ?, ?, 1, ?)",
+                (name, description, requirements, fee, processing_days, template_filename),
             )
             flash("New document type added successfully.", "success")
         if not DATABASE_URL:
             db.commit()
-    except Exception:
+    except Exception as e:
         if not DATABASE_URL:
             db.rollback()
-        flash("A document type with that name already exists.", "danger")
+        flash(f"Error saving document type: {e}", "danger")
 
     return redirect(url_for("document_types"))
 
