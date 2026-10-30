@@ -946,6 +946,23 @@ def save_document_type():
     return redirect(url_for("document_types"))
 
 
+@app.route("/staff/residents")
+@role_required(*STAFF_ROLES)
+def residents_list():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        """
+        SELECT res.*, u.id AS user_id, u.email, u.status, u.created_at
+        FROM residents res
+        JOIN users u ON u.id = res.user_id
+        ORDER BY CASE u.status WHEN 'pending' THEN 0 ELSE 1 END, res.last_name, res.first_name
+        """
+    )
+    residents = cursor.fetchall()
+    return render_template("staff/residents.html", residents=residents)
+
+
 @app.route("/staff/records/released")
 @role_required(*STAFF_ROLES)
 def released_records():
