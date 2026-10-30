@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>{% block title %}Home{% endblock %} | {{ barangay.barangay_name }}[cite: 10]</title>
+    <title>{% block title %}Home{% endblock %} | {{ barangay.barangay_name }}</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
     {% block page_css %}{% endblock %}
@@ -16,8 +16,8 @@
     {% macro nav_link(endpoint, label, also=[]) %}
     <li>
         <a href="{{ url_for(endpoint) }}"
-            class="nav-link{% if request.endpoint == endpoint or request.endpoint in also %} active{% endif %}">{{ label
-            }}</a>
+            class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-blue-700 hover:bg-slate-100 hover:underline hover:decoration-2 hover:underline-offset-4 transition-all{% if request.endpoint == endpoint or request.endpoint in also %} bg-blue-50 text-blue-700 font-semibold underline decoration-2 underline-offset-4 shadow-sm{% endif %}">{{
+            label }}</a>
     </li>
     {% endmacro %}
 
@@ -29,7 +29,7 @@
                 <div class="header-left">
                     <a class="brand" href="{{ url_for('index') }}" style="text-decoration: none;">
                         <span class="brand-name" style="font-size: 1.6rem; font-weight: 800; color: #1e3a8a;">{{
-                            barangay.barangay_name }}[cite: 10]</span>
+                            barangay.barangay_name }}</span>
                         <span class="brand-sub"
                             style="font-size: 0.75rem; font-weight: 700; color: #64748b; display: block;">Barangay
                             Clearance &amp; Document Request System</span>
@@ -69,11 +69,11 @@
                         <!-- Notifications Link na may Unread Badge Counter -->
                         <li>
                             <a href="{{ url_for('notifications_page') }}"
-                                class="nav-link{% if request.endpoint == 'notifications_page' %} active{% endif %}">
+                                class="nav-link px-3 py-2 rounded-md text-sm font-medium text-slate-600 hover:text-blue-700 hover:bg-slate-100 hover:underline hover:decoration-2 hover:underline-offset-4 transition-all{% if request.endpoint == 'notifications_page' %} bg-blue-50 text-blue-700 font-semibold underline decoration-2 underline-offset-4 shadow-sm{% endif %}">
                                 Notifications
                                 {% if unread_notifications_count and unread_notifications_count > 0 %}
                                 <span
-                                    style="background-color: #dc2626; color: white; font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 9999px; margin-left: 4px; font-weight: 700;">
+                                    class="bg-red-600 text-white text-[0.7rem] px-1.5 py-0.5 rounded-full ml-1 font-bold">
                                     {{ unread_notifications_count }}
                                 </span>
                                 {% endif %}
@@ -137,8 +137,8 @@
     <footer class="site-footer">
         <div class="container">
             <p>&copy; <span id="current-year"></span> {{ barangay.barangay_name }}, {{ barangay.municipality }}, {{
-                barangay.province }}.[cite: 10]</p>
-            {% if barangay.address %}<p class="footer-address">{{ barangay.address }}[cite: 10]</p>{% endif %}
+                barangay.province }}.</p>
+            {% if barangay.address %}<p class="footer-address">{{ barangay.address }}</p>{% endif %}
         </div>
     </footer>
 
