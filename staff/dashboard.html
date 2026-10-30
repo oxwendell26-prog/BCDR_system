@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Staff Dashboard</h1>
+    <p class="dashboard-subtitle">Welcome, {{ current_user.email }}. Here is the current state of resident requests.</p>
+
+    {% if pending_residents %}
+    <div class="pending-banner">
+        <p><strong>{{ pending_residents }}</strong> resident account{{ '' if pending_residents == 1 else 's' }} waiting
+            for approval.</p>
+        <a class="btn btn-small btn-banner-action" href="{{ url_for('residents_list') }}">Review accounts</a>
+    </div>
+    {% endif %}
+
+    {% set dashboard_statuses = ['Submitted', 'Under Review', 'For Compliance', 'Approved', 'Rejected'] %}
+    <div class="stat-grid">
+        {% for status in dashboard_statuses %}
+        <a class="stat-card" href="{{ url_for('request_queue', status=status) }}">
+            <span class="stat-number">{{ status_counts.get(status, 0) }}</span>
+            <span class="stat-label">{{ status }}</span>
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="card quick-links">
+        <h2>Quick actions</h2>
+        <p>Total requests received: <strong>{{ status_counts.values()|sum }}</strong></p>
+
+        <a class="btn" href="{{ url_for('request_queue') }}">Open request queue</a>
+
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Residents{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff/residents.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set pending_count = residents|selectattr('status', 'equalto', 'pending')|list|length %}
+{% set active_count = residents|selectattr('status', 'equalto', 'active')|list|length %}
+{% set rejected_count = residents|selectattr('status', 'equalto', 'rejected')|list|length %}
+
+<div class="container" id="residents-section" data-default-filter="{{ 'pending' if pending_count else 'all' }}">
+
+    {# Header Section kasama ang Total Residents Counter #}
+    <div
+        style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+        <div>
+            <h1>Residents</h1>
+            <p class="residents-subtitle" style="margin-bottom: 0;">Approve or reject new resident registrations, or
+                update resident profile details upon verification.</p>
+        </div>
+        <div
+            style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 0.75rem 1.25rem; text-align: right; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <span
+                style="display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 600;">Total
+                Residents</span>
+            <span style="font-size: 1.5rem; font-weight: 700; color: #1e293b;">{{ residents|length }}</span>
+        </div>
+    </div>
+
+    <div class="residents-toolbar">
+        <div class="filter-tabs" role="group" aria-label="Filter residents by status">
+            <button type="button" class="filter-tab" data-filter="pending">Pending ({{ pending_count }})</button>
+            <button type="button" class="filter-tab" data-filter="active">Approved ({{ active_count }})</button>
+            <button type="button" class="filter-tab" data-filter="rejected">Rejected ({{ rejected_count }})</button>
+            <button type="button" class="filter-tab" data-filter="all">All ({{ residents|length }})</button>
+        </div>
+        <input type="search" id="resident-search" class="resident-search" placeholder="Search name, email, or purok"
+            aria-label="Search residents">
+    </div>
+
+    <div class="table-wrapper card">
+        <table id="residents-table">
+            <thead>
+                <tr>
+                    <th>Resident</th>
+                    <th>Contact</th>
+                    <th>Purok</th>
+                    <th>Registered</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in residents %}
+                <tr class="resident-row" data-status="{{ r.status }}"
+                    data-search="{{ (r.first_name ~ ' ' ~ r.last_name ~ ' ' ~ r.email ~ ' ' ~ r.purok)|lower }}">
+                    <td>
+                        <strong>{{ r.last_name }}, {{ r.first_name }}{% if r.middle_name %} {{ r.middle_name[0] }}.{%
+                            endif %}</strong>
+                        <span class="resident-meta">Born {{ r.birthdate }} &middot; {{ r.sex }} &middot; {{
+                            r.civil_status }}</span>
+                        <span class="resident-meta">{{ r.address }}</span>
+                    </td>
+                    <td>
+                        {{ r.email }}
+                        <span class="resident-meta">{{ r.contact_number }}</span>
+                    </td>
+                    <td>{{ r.purok }}</td>
+                    <td>{{ r.created_at[:10] }}</td>
+                    <td><span class="badge badge-{{ r.status }}">{{ 'Approved' if r.status == 'active' else
+                            r.status|capitalize }}</span></td>
+                    <td>
+                        <div class="row-actions"
+                            style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                            {# Button para i-edit ang pangalan, birthdate, at iba pang detalye ng residente #}
+                            <a href="{{ url_for('staff_edit_resident', resident_id=r.id) }}"
+                                style="padding: 0.35rem 0.75rem; background-color: #e0f2fe; color: #0369a1; border-radius: 6px; text-decoration: none; font-size: 0.8rem; font-weight: 600;">
+                                Edit Profile
+                            </a>
+
+                            {% if r.status != 'active' %}
+                            <form method="post" action="{{ url_for('resident_decision', user_id=r.user_id) }}"
+                                style="margin: 0;">
+                                <input type="hidden" name="decision" value="approve">
+                                <button type="submit" class="btn btn-success btn-small">Approve</button>
+                            </form>
+                            {% endif %}
+                            {% if r.status == 'pending' %}
+                            <form method="post" action="{{ url_for('resident_decision', user_id=r.user_id) }}"
+                                data-confirm="Reject the registration of {{ r.first_name }} {{ r.last_name }}?"
+                                style="margin: 0;">
+                                <input type="hidden" name="decision" value="reject">
+                                <button type="submit" class="btn btn-danger btn-small">Reject</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="empty-row">No residents have registered yet.</td>
+                </tr>
+                {% endfor %}
+                <tr id="no-results" hidden>
+                    <td colspan="6" class="empty-row">No residents match your filter.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script src="{{ url_for('static', filename='js/staff/residents.js') }}" defer></script>
+{% endblock %}

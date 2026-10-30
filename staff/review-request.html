@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Review Request #{{ req.id }}{% endblock %}
+
+{% block page_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff/review-request.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    {# Header na may impormasyon ng request at kasalukuyang status #}
+    <div class="details-header">
+        <div>
+            <h1>Review Request <span class="request-id">#{{ req.id }}</span></h1>
+            <p class="details-subtitle">Submitted by {{ req.first_name }} {{ req.last_name }} on {{ req.created_at }}
+            </p>
+        </div>
+        <div>
+            <span class="badge badge-large badge-{{ req.status|lower|replace(' ', '-') }}">
+                {{ req.status }}
+            </span>
+        </div>
+    </div>
+
+    <div class="details-grid">
+
+        {# Kolum sa Kaliwa: Detalye ng Resident, Document, at Form para sa pag-update ng Status #}
+        <div class="card info-card">
+            <h2>Request Information</h2>
+            <ul class="info-list">
+                <li><strong>Resident Name:</strong> {{ req.first_name }} {{ req.middle_name or '' }} {{ req.last_name }}
+                </li>
+                <li><strong>Contact Number:</strong> {{ req.contact_number }} ({{ req.email }})</li>
+                <li><strong>Address:</strong> Purok {{ req.purok }}, {{ req.address }}</li>
+                <li><strong>Document Type:</strong> {{ req.document_name }} (Fee: ₱{{ "%.2f"|format(req.fee) }})</li>
+                <li><strong>Purpose:</strong> {{ req.purpose }}</li>
+            </ul>
+
+            {# Porma para sa pagbago ng status at paglalagay ng remarks #}
+            <div class="review-form-section">
+                <h2>Update Status</h2>
+
+                {% if req.status in FINAL_STATUSES %}
+                <div class="alert alert-warning">
+                    This request is already finalized ({{ req.status }}) and can no longer be modified.
+                </div>
+                {% else %}
+                <form method="post" action="{{ url_for('review_request', request_id=req.id) }}">
+
+                    <div class="form-group">
+                        <label for="status" class="required">New Status</label>
+                        <select id="status" name="status" required>
+                            <option value="">Select status...</option>
+                            {% for s in STAFF_SETTABLE_STATUSES %}
+                            <option value="{{ s }}" {% if req.status==s %}selected{% endif %}>{{ s }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="remarks">Remarks / Instructions</label>
+                        <textarea id="remarks" name="remarks" rows="3"
+                            placeholder="Required if setting to 'For Compliance' or 'Rejected'...">{{ req.remarks or '' }}</textarea>
+                        <p class="form-hint">State clear instructions if documents need re-uploading or why it is
+                            rejected.</p>
+                    </div>
+
+                    <button type="submit" class="btn">Save Status Update</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Kolum sa Kanan: Mga Na-upload na Attachments ng Residente #}
+        <div class="card sidebar-card">
+            <h2>Attached Requirements</h2>
+            {% if attachments %}
+            <ul class="attachment-list">
+                {% for att in attachments %}
+                <li>
+                    <a href="{{ url_for('view_attachment', attachment_id=att.id) }}" target="_blank">
+                        {{ att.original_name }}
+                    </a>
+                    <span class="attachment-date">{{ att.uploaded_at[:10] }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="no-attachments">No files attached to this request.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

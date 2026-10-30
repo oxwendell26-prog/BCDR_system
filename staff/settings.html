@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Barangay Settings{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 2rem auto; padding: 0 1rem;">
+    <div class="card"
+        style="background: #ffffff; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0;">
+        <h1 style="font-size: 1.5rem; font-weight: 700; color: #1e293b; margin-bottom: 0.5rem;">Barangay Information &
+            Settings</h1>
+        <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1.5rem;">Update official barangay details. These
+            details will automatically appear on generated PDFs and official documents.</p>
+
+        <form method="post" style="display: flex; flex-direction: column; gap: 1.25rem;">
+
+            <h2
+                style="font-size: 1.1rem; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.4rem; margin-top: 0.5rem;">
+                Header & Location</h2>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label
+                        style="font-weight: 600; display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: #475569;">BARANGAY
+                        NAME *</label>
+                    <input type="text" name="barangay_name" value="{{ settings.barangay_name }}" required
+                        style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+                </div>
+                <div>
+                    <label
+                        style="font-weight: 600; display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: #475569;">MUNICIPALITY
+                        / CITY *</label>
+                    <input type="text" name="municipality" value="{{ settings.municipality }}" required
+                        style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label
+                        style="font-weight: 600; display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: #475569;">PROVINCE
+                        *</label>
+                    <input type="text" name="province" value="{{ settings.province }}" required
+                        style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+                </div>
+                <div>
+                    <label
+                        style="font-weight: 600; display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: #475569;">CONTROL
+                        NUMBER PREFIX</label>
+                    <input type="text" name="control_number_prefix" value="{{ settings.control_number_prefix }}"
+                        placeholder="e.g. BRGY"
+                        style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+                </div>
+            </div>
+
+            <div>
+                <label
+                    style="font-weight: 600; display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: #475569;">BARANGAY
+                    HALL ADDRESS</label>
+                <input type="text" name="address" value="{{ settings.address or '' }}"
+                    placeholder="Barangay Hall Address"
+                    style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+            </div>
+
+            <h2
+                style="font-size: 1.1rem; color: #1e3a8a; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.4rem; margin-top: 1rem;">
+                Officials & Signatories</h2>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                    <label
+                        style="font-weight: 600; display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: #475569;">PUNONG
+                        BARANGAY (Captain)</label>
+                    <input type="text" name="punong_barangay" value="{{ settings.punong_barangay or '' }}"
+                        placeholder="Hon. Full Name"
+                        style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+                </div>
+                <div>
+                    <label
+                        style="font-weight: 600; display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: #475569;">BARANGAY
+                        SECRETARY</label>
+                    <input type="text" name="secretary" value="{{ settings.secretary or '' }}" placeholder="Full Name"
+                        style="width: 100%; padding: 0.65rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+                </div>
+            </div>
+
+            <button type="submit" class="btn"
+                style="margin-top: 1rem; padding: 0.75rem 1.5rem; background-color: #1e3a8a; color: white; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; align-self: flex-start;">
+                Save Changes
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

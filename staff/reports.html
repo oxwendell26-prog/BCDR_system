@@ -1,0 +1,93 @@
+{# Ipinapahiwatig na gagamitin nito ang pangkalahatang layout (base.html) para sa navigation at footer #}
+{% extends "base.html" %}
+
+{# Nilalagyan ng pamagat ang browser tab ng "Reports" #}
+{% block title %}System Reports{% endblock %}
+
+{% block page_css %}
+{# Pag-attach ng nakalaang CSS stylesheet para sa disenyo ng pahina ng ulat o reports #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/staff/reports.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    {# Header ng pahina: Pamagat at paliwanag para sa staff/admin #}
+    <div class="reports-header">
+        <h1>Document Request Reports</h1>
+        <p class="reports-subtitle">Generate and view summary reports of issued barangay documents and revenues.</p>
+    </div>
+
+    {# Filter / Date Range Form para sa pagpili ng saklaw ng petsa ng ulat #}
+    <div class="card reports-filter-card">
+        <form method="get" action="{{ url_for('reports') }}" class="reports-form">
+            <div class="form-group">
+                <label for="start_date">Start date</label>
+                <input type="date" id="start_date" name="start_date" value="{{ start_date }}">
+            </div>
+            <div class="form-group">
+                <label for="end_date">End date</label>
+                <input type="date" id="end_date" name="end_date" value="{{ end_date }}">
+            </div>
+            <div class="form-group filter-action">
+                <button type="submit" class="btn">Filter Report</button>
+                <a href="{{ url_for('reports') }}" class="btn btn-outline">Reset</a>
+            </div>
+        </form>
+    </div>
+
+    {# Summary Stat Cards: Pangkalahatang buod ng mga nakolektang bayarin at bilang ng request #}
+    <div class="stat-grid">
+        <div class="stat-card">
+            <span class="stat-number">{{ total_requests }}</span>
+            <span class="stat-label">Total Requests</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number">₱{{ "%.2f"|format(total_revenue) }}</span>
+            <span class="stat-label">Total Revenue (Collected Fees)</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-number">{{ completed_count }}</span>
+            <span class="stat-label">Completed / Released</span>
+        </div>
+    </div>
+
+    {# Detalyadong Talahanayan ng Ulat (Summary Table) #}
+    <div class="card reports-table-card">
+        <h2>Report Breakdown by Document Type</h2>
+
+        {# Sinusuri kung may laman ba ang report breakdown #}
+        {% if breakdown %}
+        <div class="table-wrapper">
+            <table class="reports-table">
+                <thead>
+                    <tr>
+                        <th>Document Type</th>
+                        <th>Total Requests</th>
+                        <th>Completed</th>
+                        <th>Total Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {# Loop o pag-ikot sa bawat uri ng dokumento para sa estadistika #}
+                    {% for item in breakdown %}
+                    <tr>
+                        <td><strong>{{ item.document_name }}</strong></td>
+                        <td>{{ item.count }}</td>
+                        <td>{{ item.completed_count }}</td>
+                        <td>₱{{ "%.2f"|format(item.revenue) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {# Mensahe kung walang datos sa napiling petsa #}
+        <div class="empty-state">
+            <p>No transaction records found for the selected date range.</p>
+        </div>
+        {% endif %}
+    </div>
+
+</div>
+{% endblock %}
