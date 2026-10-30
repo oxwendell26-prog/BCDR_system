@@ -821,7 +821,7 @@ def download_document_pdf(request_id):
 
 
 # =============================================================================
-# 6. STAFF ROUTES & NOTIFICATIONS
+# 6. STAFF ROUTES & SETTINGS
 # =============================================================================
 
 @app.route("/staff/dashboard")
@@ -984,14 +984,23 @@ def notifications_page():
         "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC" if DATABASE_URL else "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
         (g.user["id"],)
     )
-    notifications = cursor.fetchall()
-    cursor.execute(
+    notifications = cursor.fetchall()cursor.execute(
         "UPDATE notifications SET is_read = 1 WHERE user_id = %s" if DATABASE_URL else "UPDATE notifications SET is_read = 1 WHERE user_id = ?",
         (g.user["id"],)
     )
     if not DATABASE_URL:
         db.commit()
     return render_template("resident/notifications.html", notifications=notifications)
+
+
+@app.route("/staff/settings")
+@role_required(*STAFF_ROLES)
+def barangay_settings_page():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute("SELECT * FROM barangay_settings WHERE id = 1")
+    settings = cursor.fetchone()
+    return render_template("staff/settings.html", settings=settings)
 
 
 # =============================================================================
