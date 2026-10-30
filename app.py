@@ -945,6 +945,16 @@ def save_document_type():
 
     return redirect(url_for("document_types"))
 
+@app.route("/staff/records/released")
+@role_required(*STAFF_ROLES)
+def released_records():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    cursor.execute(
+        (REQUEST_DETAIL_SQL + " WHERE r.status = 'Released' ORDER BY r.updated_at DESC, r.id DESC")
+    )
+    released_list = cursor.fetchall()
+    return render_template("staff/released_records.html", requests=released_list)
 
 # =============================================================================
 # 7. APP START
