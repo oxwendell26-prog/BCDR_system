@@ -1020,6 +1020,20 @@ def notifications_page():
     return render_template("resident/notifications.html", notifications=notifications)
 
 
+@app.route("/notifications/clear", methods=["POST"])
+@login_required
+def clear_notifications():
+    db = get_db()
+    cursor = db.cursor() if DATABASE_URL else db
+    if DATABASE_URL:
+        cursor.execute("DELETE FROM notifications WHERE user_id = %s", (g.user["id"],))
+    else:
+        cursor.execute("DELETE FROM notifications WHERE user_id = ?", (g.user["id"],))
+        db.commit()
+    flash("Notifications cleared.", "success")
+    return redirect(url_for("notifications_page"))
+
+
 @app.route("/staff/settings")
 @role_required(*STAFF_ROLES)
 def barangay_settings_page():
