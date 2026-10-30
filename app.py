@@ -984,7 +984,8 @@ def notifications_page():
         "SELECT * FROM notifications WHERE user_id = %s ORDER BY created_at DESC" if DATABASE_URL else "SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC",
         (g.user["id"],)
     )
-    notifications = cursor.fetchall()cursor.execute(
+    notifications = cursor.fetchall()
+    cursor.execute(
         "UPDATE notifications SET is_read = 1 WHERE user_id = %s" if DATABASE_URL else "UPDATE notifications SET is_read = 1 WHERE user_id = ?",
         (g.user["id"],)
     )
